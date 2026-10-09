@@ -1,0 +1,3189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bojangles Kiosk</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --purple: #7B61FF;
+    --red-btn: #F05A5A;
+    --green-btn: #3CB955;
+    --yellow: #F5C518;
+    --border: #E0E0E0;
+    --bg-light: #F5F5F5;
+    --card-shadow: 0 2px 10px rgba(0,0,0,0.09);
+  }
+
+  html {
+    width: 100%;
+    min-height: 100vh;
+    background: #d0d0d0;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+  }
+
+  body {
+    width: 100%;
+    min-height: 100vh;
+    background: #d0d0d0;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  #kiosk {
+    width: 560px;
+    min-width: 560px;
+    min-height: 100vh;
+    background: #fff;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.25);
+  }
+
+  .screen { display: none; flex-direction: column; width: 100%; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     STATUS & NAV BARS
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+  .nav-bar {
+    height: 46px; background: #fff; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-around;
+    border-top: 1px solid #eee;
+  }
+  .nav-bar.dark { background: #0d1b4b; border-color: transparent; }
+  .nav-icon { font-size: 18px; cursor: pointer; padding: 10px; color: #555; }
+  .nav-icon.dark { color: #aaa; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 1 — WELCOME
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-welcome { background: #0d1b4b; overflow: hidden; }
+
+  .welcome-hero {
+    flex: 1; min-height: 590px;
+    background: linear-gradient(155deg, #0d1b4b 35%, #1a3a9e 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding-top: 70px;
+    position: relative; overflow: hidden;
+  }
+  .welcome-hero::before {
+    content: ''; position: absolute;
+    top: -40px; right: -50px;
+    width: 250px; height: 250px;
+    background: radial-gradient(circle, rgba(255,100,0,0.6) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .welcome-hero::after {
+    content: ''; position: absolute;
+    top: 10px; left: -30px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(255,60,0,0.35) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .welcome-logo-tab {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    background: #fff; border-radius: 0 0 20px 20px;
+    padding: 10px 28px 16px; z-index: 10;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+  .boj-logo-text {
+    font-family: Georgia, serif; font-size: 28px; font-weight: 900;
+    color: #C8102E; display: block; line-height: 1;
+  }
+  .boj-logo-sub {
+    font-size: 9px; color: #C8102E; display: block;
+    text-align: center; letter-spacing: 0.3px; margin-top: 2px;
+  }
+
+  .welcome-sub { font-size: 21px; font-weight: 800; color: #F5C518; font-style: italic; margin-bottom: 4px; z-index: 2; }
+  .welcome-main { font-size: 52px; font-weight: 900; color: #fff; text-align: center; line-height: 1.05; z-index: 2; }
+  .welcome-food {
+    z-index: 2; margin-top: 16px;
+    width: 260px; height: 200px;
+    border-radius: 50% 50% 38% 38%;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  .welcome-food img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* #6 Toast notification */
+  #toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #3CB955; color: #fff;
+    font-size: 14px; font-weight: 800;
+    padding: 12px 24px; border-radius: 30px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none; z-index: 999; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* #2 Confirmation dialog */
+  #confirm-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  #confirm-overlay.show { display: flex; }
+  #confirm-box {
+    background: #fff; border-radius: 18px;
+    padding: 28px 24px; width: 320px; text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  #confirm-box h3 { font-size: 18px; font-weight: 900; margin-bottom: 10px; }
+  #confirm-box p  { font-size: 13px; color: #666; margin-bottom: 22px; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns button {
+    flex: 1; padding: 13px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 800; cursor: pointer;
+  }
+  .btn-confirm-cancel { background: #f0f0f0; color: #333; }
+  .btn-confirm-yes    { background: #F05A5A; color: #fff; }
+
+  .welcome-bottom { display: flex; min-height: 190px; }
+  .welcome-qr {
+    flex: 1; background: #F5A623;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 16px;
+  }
+  .welcome-qr-label { font-size: 12px; font-weight: 700; color: #fff; text-align: center; line-height: 1.4; }
+  .welcome-action {
+    flex: 1; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    padding: 16px;
+  }
+  .btn-start-order {
+    width: 100%; background: #fff; border: 2px solid #ccc; border-radius: 12px;
+    padding: 16px 10px; font-size: 17px; font-weight: 800; color: #1A1A1A;
+    cursor: pointer; text-align: center; line-height: 1.25;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .btn-start-order span { display: block; font-size: 11px; font-weight: 400; color: #999; margin-top: 2px; }
+  .welcome-copy { font-size: 10px; color: #bbb; text-align: center; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 2 — DINE
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-dine {
+    background: #ebebeb;
+    background-image: radial-gradient(circle, rgba(120,120,150,0.08) 1px, transparent 1px);
+    background-size: 38px 38px;
+    align-items: center;
+  }
+  .dine-blob {
+    width: 210px; height: 210px; border-radius: 50%;
+    background: #fff; box-shadow: 0 6px 30px rgba(0,0,0,0.1);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: -20px; margin-bottom: 16px;
+  }
+  .dine-question { font-size: 25px; font-weight: 800; color: #1A1A1A; text-align: center; margin-bottom: 28px; padding: 0 20px; }
+  .dine-option {
+    width: calc(100% - 40px); background: #fff;
+    border-radius: 14px; border: 1.5px solid #ddd;
+    padding: 26px 20px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; font-size: 21px; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: background 0.12s;
+  }
+  .dine-option:hover { background: #f5f0ff; }
+  .dine-chev { font-size: 20px; color: #bbb; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 3 — MENU
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-menu { background: #f4f4f4; }
+
+  .menu-header {
+    background: #fff; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #eee; flex-shrink: 0;
+  }
+  .menu-logo-wrap {
+    width: 46px; height: 46px; border-radius: 10px;
+    background: #fff; border: 1px solid #eee;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .menu-cat-title { font-size: 20px; font-weight: 800; flex: 1; text-align: center; color: #1A1A1A; }
+
+  .menu-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .menu-sidebar {
+    width: 150px; min-width: 150px;
+    background: #fff; border-right: 1px solid #eee;
+    overflow-y: auto; padding: 6px 0;
+  }
+  .sidebar-item {
+    display: flex; flex-direction: row; align-items: center;
+    padding: 8px 10px; cursor: pointer; border-radius: 10px;
+    margin: 3px 5px; gap: 10px; transition: background 0.12s;
+    border: 2px solid transparent;
+  }
+  .sidebar-item.active { background: #ede9ff; border-color: #C9BAFF; }
+  .sidebar-emoji { font-size: 22px; flex-shrink: 0; }
+  .sidebar-label { font-size: 11px; font-weight: 700; color: #333; text-align: left; line-height: 1.2; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     MENU CARD — EXACT PPT LAYOUT
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .menu-grid-wrap { flex: 1; overflow-y: auto; padding: 10px 8px 10px 6px; }
+  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .menu-card {
+    background: #fff; border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden; cursor: pointer;
+    display: flex; flex-direction: column;
+    transition: transform 0.1s;
+    border: 1px solid #eee;
+  }
+  .menu-card:active { transform: scale(0.97); }
+
+  /* Top row: image LEFT + variants RIGHT */
+  .menu-card-top {
+    display: flex; flex-direction: row;
+    width: 100%;
+  }
+
+  /* Food image — full width (variants moved to detail screen) */
+  .menu-card-img {
+    flex: 0 0 100%;
+    min-height: 130px;
+    background: #F9E87A;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px;
+    position: relative; overflow: hidden;
+  }
+  .menu-card-img.breakfast-bg { background: #fff; }
+  .customizable-badge {
+    position: absolute; top: 6px; right: 6px;
+    background: #F5A623; color: #fff;
+    font-size: 8px; font-weight: 800;
+    padding: 3px 7px; border-radius: 10px; letter-spacing: 0.2px;
+  }
+
+  /* Variants moved to detail screen — column hidden on menu cards */
+  .menu-card-variants,
+  .combo-variant-col {
+    display: none;
+  }
+  /* Bottom info row — full width */
+  .menu-card-bottom {
+    display: flex; flex-direction: column;
+    padding: 9px 10px 10px; border-top: 1px solid #eee; gap: 4px;
+  }
+  .menu-card-name { font-size: 12.5px; font-weight: 800; color: #1A1A1A; margin-bottom: 1px; }
+  .menu-card-desc {
+    font-size: 10px; color: #999; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .menu-card-price-row {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-top: 2px;
+  }
+  .menu-card-price { font-size: 14px; font-weight: 800; color: #1A1A1A; }
+
+  /* Add button + qty controls on menu card */
+  .btn-card-add {
+    background: #F5C518; color: #1A1A1A;
+    border: none; border-radius: 8px;
+    padding: 7px 14px; font-size: 13px; font-weight: 800;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .btn-card-add:hover { background: #e0b010; }
+  .card-qty-wrap {
+    display: flex; align-items: center; gap: 0;
+    border-radius: 8px; overflow: hidden;
+    border: 1.5px solid #E8C848;
+  }
+  .card-qty-btn {
+    width: 28px; height: 28px; border: none;
+    background: #E8C848; color: #1A1A1A;
+    font-size: 15px; font-weight: 800;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .card-qty-num {
+    min-width: 26px; height: 28px;
+    background: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    color: #1A1A1A;
+  }
+
+  /* Combo variant buttons — only used in detail screen context */
+  .combo-vbtn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 8px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    font-size: 9.5px; font-weight: 700; color: #444;
+    text-align: left; line-height: 1.2;
+    transition: background 0.12s; gap: 4px;
+  }
+  .combo-vbtn:last-child { border-bottom: none; }
+  .combo-vbtn:hover { background: #f5f0ff; color: #7B61FF; }
+  .combo-vbtn.cv-selected { background: #7B61FF; color: #fff; }
+  .combo-vbtn .v-arrow { position: static; transform: none; font-size: 11px; color: #ccc; font-weight: 900; flex-shrink: 0; }
+
+  /* Menu footer */
+  .menu-footer {
+    background: #fff;
+    display: flex; flex-direction: column; align-items: stretch;
+    border-top: 1px solid #ddd; flex-shrink: 0;
+    overflow: hidden;
+  }
+  .menu-footer-copy {
+    font-size: 10px; color: #aaa; text-align: center;
+    padding: 4px 0 7px; background: #fff;
+  }
+
+  /* Plain footer — Start Again only */
+  .footer-plain {
+    padding: 10px 14px 6px;
+    display: flex; justify-content: center;
+  }
+  .btn-start-again {
+    width: 100%; max-width: 380px;
+    background: linear-gradient(90deg, #e8c0e8, #d0a8e8);
+    border: none; border-radius: 30px;
+    padding: 15px; font-size: 16px; font-weight: 800;
+    color: #6B44DD; cursor: pointer;
+  }
+
+  /* Cart footer — matches screenshot exactly */
+  .footer-cart-bar {
+    display: flex; align-items: center;
+    height: 58px; background: #ccc;
+    padding: 6px 6px 6px 8px; gap: 8px;
+  }
+  .footer-cart-start {
+    flex: 0 0 auto;
+    background: linear-gradient(90deg, #f0cff0, #dab0ea);
+    border: none; border-radius: 30px;
+    padding: 10px 20px; font-size: 14px; font-weight: 700;
+    color: #7B44CC; cursor: pointer; white-space: nowrap; height: 44px;
+  }
+  .footer-cart-green {
+    flex: 1; height: 44px;
+    background: #3CB955; border-radius: 10px;
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 0 14px 0 12px; cursor: pointer;
+  }
+  .footer-cart-info {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .footer-cart-icon { font-size: 17px; }
+  .footer-cart-text { display: flex; flex-direction: column; }
+  .footer-cart-count {
+    font-size: 12px; font-weight: 800; color: #fff; line-height: 1.3;
+  }
+  .footer-cart-sub {
+    font-size: 8.5px; color: rgba(255,255,255,0.82); line-height: 1;
+  }
+  .footer-view-cart {
+    font-size: 14px; font-weight: 800; color: #fff;
+    white-space: nowrap;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 5 — VIEW CART
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-cart { background: #EEEEF4; }
+
+  .cart-header {
+    background: #fff; padding: 14px 18px;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid #eee; flex-shrink: 0; position: relative;
+  }
+  .cart-header-logo {
+    position: absolute; left: 14px;
+    width: 42px; height: 42px; border-radius: 50%;
+    background: #222; display: flex; align-items: center; justify-content: center;
+    font-family: Georgia,serif; font-size: 9px; font-weight: 900; color: #fff;
+    text-align: center; line-height: 1.2; border: 2px solid #555;
+  }
+  .cart-header-title { font-size: 18px; font-weight: 800; color: #1A1A1A; }
+
+  .cart-scroll {
+    flex: 1; overflow-y: auto; padding: 14px 14px 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* Item card */
+  .cart-item-card {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    padding: 14px 16px;
+  }
+  .cart-item-top {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .cart-item-icon {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1.5px solid #ddd;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0; color: #888;
+  }
+  .cart-item-name {
+    flex: 1; font-size: 14px; font-weight: 700; color: #1A1A1A;
+  }
+  .cart-qty-controls {
+    display: flex; align-items: center; gap: 0;
+    border-radius: 8px; overflow: hidden;
+  }
+  .cart-qty-btn {
+    width: 32px; height: 32px; border: none;
+    background: #E8C848; color: #fff; font-size: 18px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .cart-qty-num {
+    width: 32px; height: 32px; background: #fff;
+    border-top: 1.5px solid #E8C848; border-bottom: 1.5px solid #E8C848;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #1A1A1A;
+  }
+  .cart-item-total {
+    min-width: 48px; text-align: right;
+    font-size: 14px; font-weight: 700; color: #1A1A1A;
+    margin-left: 10px;
+  }
+
+  /* Sub-option rows */
+  .cart-sub-rows { display: flex; flex-direction: column; gap: 0; padding-left: 4px; }
+  .cart-sub-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0; border-bottom: none;
+  }
+  .cart-sub-name { font-size: 12px; color: #555; }
+  .cart-sub-price { font-size: 12px; color: #333; font-weight: 600; }
+
+  .cart-customize-link {
+    margin-top: 10px; display: inline-flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 700; color: #888;
+    cursor: pointer; text-decoration: underline; border: none; background: none; padding: 0;
+  }
+
+  /* Summary panel — sticky at bottom before footer */
+  .cart-summary-panel {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    padding: 16px 18px; margin: 0 0 0;
+  }
+  .cart-sum-row {
+    display: flex; justify-content: space-between;
+    font-size: 13.5px; color: #555; padding: 5px 0;
+  }
+  .cart-sum-row.grand {
+    font-size: 15px; font-weight: 900; color: #7B61FF;
+    padding-top: 10px; margin-top: 4px;
+  }
+  .cart-sum-dashed {
+    border: none; border-top: 2px dashed #e0b8e8; margin: 4px 0;
+  }
+
+  /* Loyalty + Summary two-column row — sticks to bottom of screen-cart */
+  .cart-bottom-row {
+    display: flex; gap: 10px; align-items: stretch;
+    padding: 10px 14px 8px; background: #EEEEF4;
+    flex-shrink: 0;
+  }
+  .cart-loyalty-card {
+    flex: 1; background: #fff; border-radius: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 14px 10px; gap: 10px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .cart-loyalty-card:hover { background: #f5f0ff; }
+  .cart-loyalty-icon {
+    width: 44px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #9B61FF, #7B44DD);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .cart-loyalty-label {
+    font-size: 12px; font-weight: 700; color: #7B61FF;
+    text-align: center; line-height: 1.3;
+  }
+  .cart-summary-col {
+    flex: 1.2; background: #fff; border-radius: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    padding: 14px 16px;
+  }
+
+  /* Footer buttons */
+  .cart-footer-bar {
+    display: flex; gap: 12px; padding: 10px 14px 12px;
+    background: #fff; border-top: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  .btn-add-more {
+    flex: 1; background: #fff; border: 1.5px solid #ccc;
+    border-radius: 30px; padding: 14px;
+    font-size: 15px; font-weight: 700; color: #333; cursor: pointer;
+  }
+  .btn-proceed-pay {
+    flex: 1.6; background: #7B61FF; border: none;
+    border-radius: 30px; padding: 14px;
+    font-size: 15px; font-weight: 800; color: #fff; cursor: pointer;
+  }
+
+  /* Pizza slots */
+  .pizza-slots { display: flex; flex-direction: column; gap: 14px; }
+  .pizza-slot { background: #f7f5ff; border-radius: 12px; padding: 12px; border: 1.5px solid #e0d8ff; }
+  .pizza-slot-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .pizza-slot-title { font-size: 13px; font-weight: 700; color: #1A1A1A; }
+  .pizza-tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pizza-option-tile {
+    background: #fff; border-radius: 10px;
+    border: 1.5px solid #ddd;
+    padding: 10px 10px 10px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .pizza-option-tile:hover { border-color: #E8901A; background: #fff8f0; }
+  .pizza-option-tile.pizza-tile-sel {
+    background: #E8901A; border-color: #E8901A;
+  }
+  .pizza-option-tile.pizza-tile-sel .pizza-tile-name { color: #fff; }
+  .pizza-tile-name { font-size: 11.5px; font-weight: 700; color: #333; line-height: 1.2; flex: 1; }
+  .pizza-tile-arrow { font-size: 14px; color: #bbb; font-weight: 700; }
+  .pizza-tile-check { font-size: 14px; color: #fff; font-weight: 900; }
+  .pizza-chosen-mods { font-size: 11px; color: #E8901A; margin-top: 8px; font-weight: 600; }
+  .bd-burger-list { display: flex; flex-direction: column; gap: 8px; }
+  .bd-burger-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f7f5ff; border: 1.5px solid #C9BAFF; border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; transition: background 0.12s;
+  }
+  .bd-burger-row:hover { background: #ede9ff; }
+  .bd-burger-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+  .bd-burger-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #7B61FF; color: #fff;
+    font-size: 15px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .bd-burger-name { font-size: 13px; font-weight: 700; color: #1A1A1A; }
+  .bd-burger-mods { font-size: 11px; color: #888; margin-top: 2px; }
+  .bd-burger-arrow { font-size: 20px; color: #7B61FF; font-weight: 700; }
+
+  /* Burger modifier screen */
+  #screen-burger-mod { background: #f4f4f4; }
+  #screen-pizza-mod  { background: #f4f4f4; }
+  .burger-mod-header {
+    background: #fff; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #eee; flex-shrink: 0;
+  }
+  .burger-mod-back {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #f0f0f0; border: none; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+  }
+  .burger-mod-title { font-size: 16px; font-weight: 800; color: #1A1A1A; flex: 1; }
+  .burger-mod-scroll {
+    flex: 1; overflow-y: auto; padding: 12px 12px 100px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .burger-mod-footer {
+    display: flex; flex-shrink: 0;
+  }
+  .btn-burger-save {
+    flex: 1; background: #7B61FF; border: none;
+    padding: 18px; font-size: 16px; font-weight: 800; color: #fff; cursor: pointer;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 3.5 — VARIANT PICKER
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-variant { background: #F8F9FA; }
+
+  .vp-header {
+    background: #111; padding: 20px 16px 24px;
+    display: flex; align-items: center; gap: 14px;
+    flex-shrink: 0; min-height: 88px; color: #fff;
+    position: relative;
+  }
+  .vp-back-btn {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); border: none; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; color: #fff;
+  }
+  .vp-header-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .vp-item-name {
+    font-size: 22px; font-weight: 900; color: #fff;
+    line-height: 1.2;
+  }
+  .vp-item-price-pill {
+    background: rgba(123, 97, 255, 0.25);
+    color: #fff;
+    padding: 8px 16px; border-radius: 22px;
+    font-size: 18px; font-weight: 900;
+    flex-shrink: 0;
+    letter-spacing: 0.3px;
+  }
+
+  .vp-body {
+    flex: 1; overflow-y: auto; padding: 24px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+    background: #F8F9FA;
+  }
+  .vp-prompt {
+    font-size: 13px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 4px; padding: 0 4px;
+  }
+  .vp-grid {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .vp-tile {
+    background: #fff; border-radius: 16px;
+    border: 2px solid #EAEAEA;
+    overflow: hidden; cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    display: flex; flex-direction: row; align-items: center;
+    padding: 0; min-height: 80px;
+  }
+  .vp-tile:hover { border-color: #C9BAFF; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(123,97,255,0.1); }
+  .vp-tile.vp-selected {
+    border-color: #7B61FF;
+    background: #F8F6FF;
+    box-shadow: 0 4px 20px rgba(123,97,255,0.15);
+  }
+  .vp-tile-img-wrap {
+    width: 90px; height: 90px; position: relative; overflow: hidden;
+    background: #f0f0f0; flex-shrink: 0;
+    border-radius: 14px 0 0 14px;
+  }
+  .vp-tile-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .vp-tile-info {
+    padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+    flex: 1;
+  }
+  .vp-tile-name {
+    font-size: 16px; font-weight: 800; color: #1A1A1A; line-height: 1.2;
+  }
+  .vp-tile.vp-selected .vp-tile-name { color: #7B61FF; }
+  .vp-tile-sub {
+    font-size: 12px; font-weight: 500; color: #888; line-height: 1.3;
+  }
+  .vp-tile-default-badge {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+    font-size: 10px; font-weight: 800;
+    background: #FDE893; color: #7B6100;
+    padding: 4px 10px; border-radius: 20px; align-self: flex-start;
+  }
+  
+  /* Circular Radio Button */
+  .vp-tile-radio {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid #E0E0E0; background: #fff;
+    margin-right: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+  }
+  .vp-tile.vp-selected .vp-tile-radio {
+    background: #7B61FF; border-color: #7B61FF;
+  }
+  .vp-tile-radio::after {
+    content: '✓'; color: #fff; font-size: 14px; font-weight: 900;
+    opacity: 0; transform: scale(0.5); transition: all 0.2s ease;
+  }
+  .vp-tile.vp-selected .vp-tile-radio::after {
+    opacity: 1; transform: scale(1);
+  }
+
+  .vp-footer {
+    background: #fff; border-top: 1px solid #eee;
+    padding: 16px 20px; flex-shrink: 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
+  }
+  .vp-continue-btn {
+    width: 100%; background: #7B61FF; border: none;
+    border-radius: 16px; padding: 20px;
+    font-size: 18px; font-weight: 800; color: #fff;
+    cursor: pointer; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 6px 20px rgba(123,97,255,0.3);
+  }
+  .vp-continue-btn:hover { background: #6848fa; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(123,97,255,0.4); }
+  .vp-continue-btn:active { transform: translateY(1px); box-shadow: 0 2px 10px rgba(123,97,255,0.3); }
+  .vp-continue-btn .vp-btn-sel {
+    background: rgba(255,255,255,0.25); border-radius: 10px;
+    padding: 4px 12px; font-size: 15px; font-weight: 700;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     SCREEN 4 — ITEM DETAIL
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  #screen-detail { background: #f4f4f4; }
+
+  .detail-header {
+    background: #fff; padding: 12px 14px 12px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #eee; min-height: 125px; flex-shrink: 0;
+  }
+  .detail-img {
+    width: 125px; height: 102px; border-radius: 12px;
+    background: #F9E87A; display: flex; align-items: center;
+    justify-content: center; font-size: 52px; flex-shrink: 0;
+  }
+  .detail-img.breakfast-bg { background: #fff; border: 1px solid #eee; }
+  .detail-name { font-size: 19px; font-weight: 900; color: #1A1A1A; line-height: 1.2; }
+
+  .detail-scroll {
+    flex: 1; overflow-y: auto; padding: 10px 10px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .detail-section {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.07); overflow: hidden;
+  }
+  .detail-sec-hdr {
+    display: flex; align-items: center;
+    padding: 11px 14px; border-bottom: 1px solid #f0f0f0;
+  }
+  .detail-sec-label { font-size: 13.5px; font-weight: 800; color: #7B61FF; }
+  .detail-sec-meta { font-size: 10.5px; color: #999; }
+  .detail-sec-chevron { font-size: 15px; color: #7B61FF; transition: transform 0.18s; }
+  .detail-sec-chevron.open { transform: rotate(180deg); }
+  .detail-sec-body { padding: 12px 14px; }
+
+  .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle-btn {
+    padding: 10px 16px; border-radius: 8px;
+    border: 2px solid #ddd; background: #fff;
+    font-size: 13.5px; font-weight: 700; color: #333;
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  .toggle-btn.sel { background: #7B61FF; border-color: #7B61FF; color: #fff; }
+
+  .size-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+  .size-tab {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1.5px solid #ddd; background: #fff;
+    font-size: 11.5px; font-weight: 700; color: #555;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .size-tab.sel { background: #7B61FF; border-color: #7B61FF; color: #fff; }
+
+  .sub-hdr {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+
+  .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .opt-btn {
+    padding: 11px 10px; border-radius: 8px;
+    border: 1.5px solid #ddd; background: #fff;
+    font-size: 11.5px; font-weight: 600; color: #333;
+    cursor: pointer; text-align: left;
+    transition: all 0.12s; position: relative;
+  }
+  .opt-btn.sel { background: #7B61FF; border-color: #7B61FF; color: #fff; }
+  .opt-btn.multi-sel { background: #7B61FF; border-color: #7B61FF; color: #fff; }
+
+  .customize-tag {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: #F5C518; color: #fff;
+    font-size: 8.5px; font-weight: 800;
+    padding: 2px 6px; border-radius: 5px;
+  }
+
+  /* NEW: Tile layout for BYO Burger Options (Sides, Drinks, etc.) */
+  .byo-card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+  }
+  .byo-card-grid.sauces {
+      grid-template-columns: repeat(4, 1fr);
+  }
+  .byo-card-tile {
+      background: #fff; border-radius: 12px;
+      border: 1.5px solid #eaeaea;
+      overflow: hidden; cursor: pointer;
+      display: flex; flex-direction: column;
+      transition: all 0.15s;
+  }
+  .byo-card-tile:hover { border-color: #C9BAFF; }
+  .byo-card-tile.sel {
+      border-color: #7B61FF;
+      background: #f8f6ff;
+  }
+  .byo-card-img-wrap {
+      width: 100%; padding-top: 100%; /* 1:1 Aspect Ratio */
+      position: relative; background: #f0f0f0;
+  }
+  .byo-card-img-wrap img {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      background: #f0f0f0;
+  }
+  .byo-card-grid.sauces .byo-card-img-wrap {
+      background: transparent;
+      padding: 10px; /* Space for the circular look */
+      padding-top: 100%;
+  }
+  .byo-card-grid.sauces .byo-card-img-wrap img {
+      top: 10px; left: 10px;
+      width: calc(100% - 20px); height: calc(100% - 20px);
+      border-radius: 50%; object-fit: cover;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: 2px solid transparent;
+  }
+  .byo-card-grid.sauces .byo-card-tile.sel .byo-card-img-wrap img {
+      border-color: #7B61FF;
+  }
+  .byo-card-info {
+      padding: 8px; text-align: left;
+  }
+  .byo-card-grid.sauces .byo-card-info {
+      text-align: center; padding-top: 0;
+  }
+  .byo-card-name {
+      font-size: 11px; font-weight: 700; color: #1A1A1A;
+      margin-bottom: 2px; line-height: 1.2;
+  }
+  .byo-card-grid.sauces .byo-card-tile.sel .byo-card-name {
+      color: #7B61FF;
+  }
+  .byo-card-price {
+      font-size: 10px; color: #555;
+  }
+  .byo-card-tile.sel .byo-card-price { color: #7B61FF; font-weight: 700; }
+  
+  .byo-card-sel-badge {
+      background: #7B61FF; color: #fff; font-size: 12px; font-weight: 700;
+      padding: 4px 8px; border-radius: 12px;
+  }
+
+
+  /* Footer */
+  .detail-footer {
+    position: sticky; bottom: 0;
+    display: flex; z-index: 50; flex-shrink: 0;
+  }
+  .btn-close {
+    flex: 1; background: #F05A5A; border: none;
+    padding: 18px; font-size: 16px; font-weight: 800; color: #fff;
+    cursor: pointer;
+  }
+  .btn-add-cart {
+    flex: 1.5; background: #3CB955; border: none;
+    padding: 18px; font-size: 16px; font-weight: 800; color: #fff;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="kiosk">
+<div id="toast">✓ Added to cart!</div>
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <h3>Start Over?</h3>
+    <p>This will clear your cart and return to the welcome screen.</p>
+    <div class="confirm-btns">
+      <button class="btn-confirm-cancel" onclick="hideConfirm()">Cancel</button>
+      <button class="btn-confirm-yes" onclick="confirmStartAgain()">Yes, Start Again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 1: WELCOME
+════════════════════════════════ -->
+<div class="screen active" id="screen-welcome">
+  <div class="welcome-hero">
+    <div class="welcome-logo-tab">
+      <span class="boj-logo-text">Bojangles</span>
+      <span class="boj-logo-sub">Famous Chicken 'n Biscuits</span>
+    </div>
+    <div class="welcome-sub">Bold. Crispy. Southern.</div>
+    <div class="welcome-main">Chicken<br>'n Biscuits</div>
+    <div class="welcome-food">
+      <img src="https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=520&h=400&fit=crop"
+           alt="Bojangles Food"
+           onerror="this.parentElement.style.background='linear-gradient(135deg,#F5C518,#e09000)';this.style.display='none'"/>
+    </div>
+  </div>
+  <div class="welcome-bottom">
+    <div class="welcome-qr">
+      <svg viewBox="0 0 80 80" width="82" height="82" xmlns="http://www.w3.org/2000/svg">
+        <rect width="80" height="80" fill="white" rx="6"/>
+        <rect x="5" y="5" width="28" height="28" fill="none" stroke="#000" stroke-width="3"/>
+        <rect x="11" y="11" width="16" height="16" fill="#000"/>
+        <rect x="47" y="5" width="28" height="28" fill="none" stroke="#000" stroke-width="3"/>
+        <rect x="53" y="11" width="16" height="16" fill="#000"/>
+        <rect x="5" y="47" width="28" height="28" fill="none" stroke="#000" stroke-width="3"/>
+        <rect x="11" y="53" width="16" height="16" fill="#000"/>
+        <rect x="47" y="47" width="7" height="7" fill="#000"/><rect x="56" y="47" width="7" height="7" fill="#000"/>
+        <rect x="66" y="47" width="9" height="7" fill="#000"/><rect x="47" y="56" width="15" height="6" fill="#000"/>
+        <rect x="64" y="56" width="11" height="6" fill="#000"/><rect x="47" y="64" width="7" height="11" fill="#000"/>
+        <rect x="57" y="64" width="7" height="11" fill="#000"/><rect x="66" y="66" width="9" height="5" fill="#000"/>
+        <rect x="35" y="5" width="6" height="6" fill="#000"/><rect x="35" y="13" width="6" height="6" fill="#000"/>
+        <rect x="5" y="35" width="6" height="6" fill="#000"/><rect x="13" y="35" width="6" height="6" fill="#000"/>
+        <rect x="35" y="35" width="6" height="6" fill="#000"/><rect x="43" y="35" width="6" height="6" fill="#000"/>
+      </svg>
+      <div class="welcome-qr-label">Scan the QR Code<br>to view our website!</div>
+    </div>
+    <div class="welcome-action">
+      <button class="btn-start-order" onclick="navigate('screen-dine')">
+        Start Order
+        <span>to get deliciousness</span>
+      </button>
+      <div class="welcome-copy">© 2026 Bojangles. All rights reserved.</div>
+    </div>
+  </div>
+  <div class="nav-bar dark">
+    <span class="nav-icon dark">◀</span>
+    <span class="nav-icon dark">●</span>
+    <span class="nav-icon dark">■</span>
+    <span class="nav-icon dark">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 2: DINE TYPE
+════════════════════════════════ -->
+<div class="screen" id="screen-dine">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding-top:0;background:#ebebeb;background-image:radial-gradient(circle,rgba(130,130,160,0.08)1px,transparent 1px);background-size:38px 38px;">
+    <div class="dine-blob">
+      <div>
+        <div style="font-family:Georgia,serif;font-size:26px;font-weight:900;color:#C8102E;text-align:center;">Bojangles</div>
+        <div style="font-size:8.5px;color:#C8102E;text-align:center;">Famous Chicken 'n Biscuits</div>
+      </div>
+    </div>
+    <div class="dine-question">Where would you like to eat?</div>
+    <div class="dine-option" onclick="DS.dineType='eat-in'; navigate('screen-menu','breakfast')">
+      <span>Eat In</span><span class="dine-chev">›</span>
+    </div>
+    <div class="dine-option" onclick="DS.dineType='take-out'; navigate('screen-menu','breakfast')">
+      <span>Take Out</span><span class="dine-chev">›</span>
+    </div>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-welcome')">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 3: MENU
+════════════════════════════════ -->
+<div class="screen" id="screen-menu">
+  <div class="menu-header">
+    <div class="menu-logo-wrap">
+      <span style="font-family:Georgia,serif;font-size:10px;font-weight:900;color:#C8102E;text-align:center;line-height:1.2;">Bojan<br>gles</span>
+    </div>
+    <div class="menu-cat-title" id="menu-cat-title">Chicken</div>
+  </div>
+  <div class="menu-body">
+    <div class="menu-sidebar" id="menu-sidebar"></div>
+    <div class="menu-grid-wrap">
+      <div class="menu-grid" id="menu-grid"></div>
+    </div>
+  </div>
+  <div class="menu-footer" id="menu-footer"></div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-dine')">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 3.5: VARIANT PICKER
+════════════════════════════════ -->
+<div class="screen" id="screen-variant">
+  <div class="vp-header">
+    <button class="vp-back-btn" onclick="navigate('screen-menu')">◀</button>
+    <div class="vp-header-info">
+      <div class="vp-item-name" id="vp-item-name"></div>
+    </div>
+    <div class="vp-item-price-pill" id="vp-item-price"></div>
+  </div>
+  <div class="vp-body" id="vp-body"></div>
+  <div class="vp-footer">
+    <button class="vp-continue-btn" id="vp-continue-btn" onclick="vpConfirm()">
+      Continue with <span class="vp-btn-sel" id="vp-btn-label">Dark</span> →
+    </button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-menu')">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 4: ITEM DETAIL
+════════════════════════════════ -->
+<div class="screen" id="screen-detail">
+  <div class="detail-header" id="detail-header"></div>
+  <div class="detail-scroll" id="detail-body"></div>
+  <div class="detail-footer">
+    <button class="btn-close" onclick="navigate('screen-menu')">Close</button>
+    <button class="btn-add-cart" id="btn-add-cart" onclick="addToCart()">Add to Cart | $7.68</button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-menu')">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 5: VIEW CART
+════════════════════════════════ -->
+<div class="screen" id="screen-cart">
+  <div class="cart-header">
+    <div class="cart-header-logo">Bo<br>jangles</div>
+    <div class="cart-header-title">Your Cart</div>
+  </div>
+  <div class="cart-scroll" id="cart-body"></div>
+  <div class="cart-bottom-row" id="cart-bottom-fixed"></div>
+  <div class="cart-footer-bar">
+    <button class="btn-add-more" onclick="navigate('screen-menu')">Add More</button>
+    <button class="btn-proceed-pay" onclick="placeOrder()">Proceed to Pay</button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-menu')">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 6: BURGER MODIFIER
+════════════════════════════════ -->
+<div class="screen" id="screen-burger-mod">
+  <div class="burger-mod-header">
+    <button class="burger-mod-back" onclick="navigate('screen-detail'); if(isClassicBurgerCombo) _renderBurgerComboDetail(DS.bcSize); else if(currentBurgerIdx === 'byo') renderBYOSingleBurgerComboDetail(); else renderBigDealDetail();">◀</button>
+    <div class="burger-mod-title" id="burger-mod-title">Burger 1</div>
+  </div>
+  <div class="burger-mod-scroll" id="burger-mod-body"></div>
+  <div class="burger-mod-footer">
+    <button class="btn-burger-save" onclick="saveBurgerMods()">✓ Done — Save This Burger</button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-detail'); if(isClassicBurgerCombo) _renderBurgerComboDetail(DS.bcSize); else if(currentBurgerIdx === 'byo') renderBYOSingleBurgerComboDetail(); else renderBigDealDetail();">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 7: PIZZA MODIFIER
+════════════════════════════════ -->
+<div class="screen" id="screen-pizza-mod">
+  <div class="burger-mod-header">
+    <button class="burger-mod-back" onclick="navigate('screen-detail');renderBurgerDetail(DS.burgerSize)">◀</button>
+    <div class="burger-mod-title" id="pizza-mod-title">Pick Your Pizza</div>
+  </div>
+  <div class="burger-mod-scroll" id="pizza-mod-body"></div>
+  <div class="burger-mod-footer">
+    <button class="btn-burger-save" style="background:#E8901A" onclick="savePizzaMods()">✓ Done — Save This Pizza</button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon" onclick="navigate('screen-detail');renderBurgerDetail(DS.burgerSize)">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     SCREEN 8: ORDER CONFIRMATION
+════════════════════════════════ -->
+<div class="screen" id="screen-confirm-order">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:#f4f4f4;gap:20px;">
+    <div style="width:90px;height:90px;border-radius:50%;background:#3CB955;display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 8px 24px rgba(60,185,85,0.35);">✓</div>
+    <div style="font-size:24px;font-weight:900;color:#1A1A1A;text-align:center;">Order Placed!</div>
+    <div style="font-size:15px;color:#555;text-align:center;line-height:1.5;">Thank you for your order.<br>Your order number is</div>
+    <div id="order-number" style="font-size:48px;font-weight:900;color:#7B61FF;letter-spacing:4px;">—</div>
+    <div style="font-size:13px;color:#888;text-align:center;">Please wait at the counter.<br>We'll call your number when ready.</div>
+    <button onclick="resetCart();navigate('screen-welcome')"
+      style="margin-top:16px;background:#7B61FF;color:#fff;border:none;border-radius:30px;padding:16px 48px;font-size:17px;font-weight:800;cursor:pointer;">
+      Done
+    </button>
+  </div>
+  <div class="nav-bar">
+    <span class="nav-icon">◀</span>
+    <span class="nav-icon">●</span>
+    <span class="nav-icon">■</span>
+    <span class="nav-icon">⬇</span>
+  </div>
+</div>
+
+</div><!-- #kiosk -->
+
+<script>
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   EXPAND / COLLAPSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function toggleSection(hdr) {
+  const body = hdr.nextElementSibling;
+  const chev = hdr.querySelector('.detail-sec-chevron');
+  const secEl = hdr.closest('.detail-section');
+  const secId = secEl ? secEl.dataset.secId : null;
+  if (!body || !chev) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  chev.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+  if (secId) {
+    if (collapsed) DS.collapsedSections.delete(secId);
+    else DS.collapsedSections.add(secId);
+  }
+}
+
+// Apply preserved collapsed state after each render
+let _applyRafId = null;
+function applyCollapsedState() {
+  if (_applyRafId) cancelAnimationFrame(_applyRafId);
+  _applyRafId = requestAnimationFrame(() => {
+    _applyRafId = null;
+    // Only run if detail screen is active
+    const detailScreen = document.getElementById('screen-detail');
+    if (!detailScreen || !detailScreen.classList.contains('active')) return;
+    document.querySelectorAll('.detail-section').forEach(el => {
+      const id = el.dataset.secId;
+      if (id && DS.collapsedSections && DS.collapsedSections.has(id)) {
+        const body = el.querySelector('.detail-sec-body');
+        const chev = el.querySelector('.detail-sec-chevron');
+        if (body) body.style.display = 'none';
+        if (chev) chev.style.transform = 'rotate(0deg)';
+      }
+    });
+  });
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const CATEGORIES = [
+  { id:'combo',           label:'Burger/Pizza',    emoji:'🍔', img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&h=120&fit=crop' },
+  { id:'breakfast',       label:'Breakfast',       emoji:'🍳', img:'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=120&h=120&fit=crop' },
+  { id:'breakfast-combo', label:'Breakfast Combo', emoji:'🥞', img:'https://images.unsplash.com/photo-1550507992-eb63ffee0847?w=120&h=120&fit=crop' },
+  { id:'chicken',         label:'Chicken',         emoji:'🍗', img:'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=120&h=120&fit=crop' },
+];
+
+const CHICKEN_ITEMS = [
+  { id:'c1', name:'3 Piece Dinner',  desc:'3 pieces of our signature fried chicken with your choice of 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=300&h=200&fit=crop&auto=format' },
+  { id:'c2', name:'2 Piece Dinner',  desc:'2 pieces of golden fried chicken served with your choice of 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=300&h=200&fit=crop&auto=format' },
+  { id:'c3', name:'1 Breast Dinner', desc:'A juicy chicken breast, seasoned and fried to perfection with 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=200&fit=crop&auto=format' },
+  { id:'c4', name:'2 Breast Dinner', desc:'Two tender chicken breasts, crispy outside and juicy inside with 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=300&h=200&fit=crop&auto=format' },
+  { id:'c5', name:'3 Breast Dinner', desc:'Three golden-fried chicken breasts with your choice of 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=300&h=200&fit=crop&auto=format' },
+  { id:'c6', name:'4 Breast Dinner', desc:'Four crispy chicken breasts — perfect for a hearty meal with 1 fixin.', price:'$8.99', type:'chicken', img:'https://images.unsplash.com/photo-1615361200141-f45040f367be?w=300&h=200&fit=crop&auto=format' },
+];
+
+const BREAKFAST_ITEMS = [
+  { id:'b1', name:'#1 Caj Biscuit Meal',  desc:'All white meat chicken breast marinated with a bold blend of seasonings.', price:'$9.48', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1550507992-eb63ffee0847?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'b2', name:'#2 BEC Bisc Meal',     desc:'Bacon, egg & cheese on a fresh-baked biscuit.', price:'$4.39', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'b3', name:'#3 SEC Bisc Meal',     desc:'Sausage, egg & cheese on a fresh-baked biscuit.', price:'$4.99', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'b4', name:'#4 Saus Bisc Meal',    desc:'Savory sausage on a warm, flaky biscuit.', price:'$3.99', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1607532941433-304659e8198a?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'b5', name:'#5 Ham Bisc Meal',     desc:'Sliced ham on a warm, flaky biscuit.', price:'$4.29', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1619740455153-9f49b4d4c5c6?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'b7', name:'#7 Steak Bisc Meal',   desc:'Tender steak on a warm, flaky biscuit.', price:'$5.49', type:'breakfast', category:'breakfast', img:'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=300&h=200&fit=crop&auto=format', customizable:true },
+];
+
+// Copy of BREAKFAST_ITEMS — same shape, same detail/customization behavior (type:'breakfast'),
+// but distinguished by category:'breakfast-combo' so it appears under its own sidebar entry.
+const BREAKFAST_COMBO_ITEMS = [
+  { id:'bc1', name:'#1 Caj Biscuit Meal',  desc:'All white meat chicken breast marinated with a bold blend of seasonings.', price:'$9.48', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1550507992-eb63ffee0847?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'bc2', name:'#2 BEC Bisc Meal',     desc:'Bacon, egg & cheese on a fresh-baked biscuit.', price:'$4.39', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'bc3', name:'#3 SEC Bisc Meal',     desc:'Sausage, egg & cheese on a fresh-baked biscuit.', price:'$4.99', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'bc4', name:'#4 Saus Bisc Meal',    desc:'Savory sausage on a warm, flaky biscuit.', price:'$3.99', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1607532941433-304659e8198a?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'bc5', name:'#5 Ham Bisc Meal',     desc:'Sliced ham on a warm, flaky biscuit.', price:'$4.29', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1619740455153-9f49b4d4c5c6?w=300&h=200&fit=crop&auto=format', customizable:true },
+  { id:'bc7', name:'#7 Steak Bisc Meal',   desc:'Tender steak on a warm, flaky biscuit.', price:'$5.49', type:'breakfast', category:'breakfast-combo', img:'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=300&h=200&fit=crop&auto=format', customizable:true },
+];
+
+const BURGER_PIZZA_ITEMS = [
+  { id:'bp1', name:'BYO Single Burger Combo',desc:'Includes choice of burger, side, and drink.', price:'$8.29', type:'bigdeal',     img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&h=200&fit=crop', customizable:true },
+  { id:'bp2', name:'Classic Burger Combo',desc:'Choice of burger, Hand-Cut Fries & a Fountain Drink.', price:'$10.99',                  type:'burgercombo', img:'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=300&h=200&fit=crop', customizable:true },
+  { id:'bp3', name:'Classic Pizza Combo', desc:'Includes 1 Personal Pizza, 1 Side, 1 Drink.', price:'$8.95',                               type:'pizza',       img:'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300&h=200&fit=crop', customizable:true },
+  { id:'bp5', name:'Pepperoni Pizza',     desc:'Classic pepperoni pizza with mozzarella and tomato sauce.', price:'$9.95',                  type:'burgerplain', img:'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=300&h=200&fit=crop', customizable:true },
+  { id:'bp6', name:'BBQ Bacon Burger',    desc:'Juicy beef patty with crispy bacon and smoky BBQ sauce.', price:'$7.49',                    type:'burgerplain', img:'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=300&h=200&fit=crop', customizable:true },
+  { id:'bp7', name:'Veggie Pizza Combo',  desc:'Fresh veggie toppings on a crispy crust with marinara sauce.', price:'$8.49',              type:'pizza',       img:'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=300&h=200&fit=crop', customizable:true },
+];
+
+const FIXIN_OPTIONS = {
+  Regular: ['Reg Bo-Tato Rounds','Reg Bo-Fries','Reg Dirty Rice','Reg Macaroni & Cheese','Reg Baked Mac & Cheese','Reg Green Beans','Reg Cole Slaw','Reg Cajun Pintos'],
+  Medium:  ['Med Bo-Tato Rounds','Med Bo-Fries','Med Dirty Rice','Med Macaroni & Cheese','Med Baked Mac & Cheese','Med Green Beans','Med Cole Slaw','Med Cajun Pintos'],
+  Family:  ['Fam Bo-Tato Rounds','Fam Bo-Fries','Fam Dirty Rice','Fam Macaroni & Cheese','Fam Baked Mac & Cheese','Fam Green Beans','Fam Cole Slaw','Fam Cajun Pintos'],
+};
+const CONDIMENTS   = ['Grape Jelly Packet','Strawberry Jelly Packet','Hot Sauce Packet','Ketchup Packet','Mustard Packet','Butter Packet'];
+const DRINKS = {
+  Small:    ['Small Sweet Tea','Small Unsweet Tea','Small Pepsi','Small Pepsi Zero','Small Diet Pepsi','Small Dr Pepper','Small Starry','Small Mtn Dew'],
+  Medium:   ['Med Sweet Tea','Med Unsweet Tea','Med Pepsi','Med Pepsi Zero','Med Diet Pepsi','Med Dr Pepper','Med Starry','Med Mtn Dew'],
+  Large:    ['Large Sweet Tea','Large Unsweet Tea','Large Pepsi','Large Pepsi Zero','Large Diet Pepsi','Large Dr Pepper','Large Starry','Large Mtn Dew'],
+  '1/2 Gal':['1/2 Gal Sweet Tea','1/2 Gal Unsweet Tea'],
+};
+const PIECES        = ['Thigh','Leg','Wing','Breast'];
+const BISCUIT_MODS  = ['American Cheese','Eggs','Lettuce','Mayo','Pickles','Season Salt'];
+const BREAD_OPTIONS = ['On a Bisc','On a Bun','On a Light Bisc','On a Dark Bisc','On a BoBerry Bisc','On a Baffle'];
+const MEAT_BF       = ['Sausage','Ham','Bacon','Steak','Cajun Filet','Grilled Filet'];
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GLOBAL STATE — single object, never re-assigned
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let currentCat  = 'breakfast';
+let currentItem = null;
+window.DS = {
+  dineType: null, // 'eat-in' or 'take-out'
+  // chicken
+  meatType:'Dark', fixinCount:'1 Fixin', fixinSize:'Regular', fixinSize2:'Regular',
+  selectedFixins:[], selectedFixins2:[], selectedCondiments:[], selectedPieces:[],
+  // breakfast
+  combo:'A La Carte',
+  fixin1Size:'Regular', selectedFixin1:[],
+  fixin2Size:'Regular', selectedFixin2:[],
+  drinksSize:'Large',   selectedDrinks:[],
+  selectedBiscuitMods:[], selectedMeatOpts:[],
+  selectedBreadOpts:[], selectedBfCondiments:[],
+  // burger/pizza
+  burgerSize:'Regular', burgerExtras:[], burgerCondiments:[], burgerDrink:[],
+  pizzas:[], pizzaSide:[], pizzaBev:[], pizzaDessert:[], pizzaApps:[],
+  pizzaBevSize:'Regular', bdBevSize:'Regular',
+  bdBurgers:[{},{},{},{}], bdBeverage:[], bdDessert:[],
+  // BYO Single Burger Combo specific state
+  byoBurger: { mods:[], bun:'White Bun', protein:'Beef Patty', cheese:'American Cheese', toppings:[], sauces:[] },
+  byoSide: null, // string
+  byoFriesLoaded: null, // string
+  byoSauces: [], // array up to 3
+  byoDrink: null, // string
+  byoOpenSections: { sides: true, loaded: false, sauces: false, drinks: false },
+  // burger combo
+  bcSize:'Single', bcBurger:[], bcFries:[], bcDrink:[],
+  bcDrinkSz:'Medium', bcToppings:[], bcSauces:[],
+  // cart
+  cartCount: 0, cartTotal: 0, cartItems: [],
+  menuQty: {}, // tracks qty per item directly from menu card
+  // UI state
+  collapsedSections: new Set(),
+};
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   NAVIGATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function navigate(screenId, param) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const scr = document.getElementById(screenId);
+  if (!scr) { console.warn('navigate: screen not found:', screenId); return; }
+  scr.classList.add('active');
+  scr.scrollTop = 0;
+  // #13 also reset the inner scrollable containers
+  if (screenId === 'screen-detail') {
+    const db = document.getElementById('detail-body');
+    if (db) db.scrollTop = 0;
+  }
+  if (screenId === 'screen-cart') {
+    const cb = document.getElementById('cart-body');
+    if (cb) cb.scrollTop = 0;
+  }
+  if (screenId === 'screen-menu') {
+    switchCategory(param || currentCat); // also re-renders sidebar with badges
+    renderMenuFooter();
+  }
+  if (screenId === 'screen-cart') {
+    renderCartScreen();
+  }
+  if (screenId === 'screen-variant') {
+    const vb = document.getElementById('vp-body');
+    if (vb) vb.scrollTop = 0;
+  }
+  if (screenId === 'screen-burger-mod') { renderBurgerModifier(); }
+  if (screenId === 'screen-pizza-mod')  { renderPizzaModifier(); }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MENU CARD QTY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function menuQtyChange(itemId, delta) {
+  const allItems = [...CHICKEN_ITEMS, ...BREAKFAST_ITEMS, ...BREAKFAST_COMBO_ITEMS, ...BURGER_PIZZA_ITEMS];
+  const item = allItems.find(i => i.id === itemId);
+  if (!item) return;
+
+  const prev = DS.menuQty[itemId] || 0;
+
+  if (delta > 0 && prev === 0) {
+    // First tap on + Add — go through variant picker
+    openVariantPicker(itemId);
+    return;
+  }
+
+  // Already in cart — for customizable items always open detail for a new customization
+  if (delta > 0 && item.customizable) {
+    openVariantPicker(itemId);
+    return;
+  }
+
+  // Already in cart — just adjust qty directly
+  const next = Math.max(0, prev + delta);
+  DS.menuQty[itemId] = next;
+
+  const price = parseFloat((item.price||'$0').replace(/[^0-9.]/g,'')) || 0;
+  const cartIdx = DS.cartItems.findIndex(i => i.id === itemId && !i.snapshot);
+  if (next === 0 && cartIdx > -1) {
+    DS.cartItems.splice(cartIdx, 1);
+  } else if (next > 0 && cartIdx > -1) {
+    DS.cartItems[cartIdx].qty = next;
+  }
+
+  DS.cartCount = DS.cartItems.reduce((s, i) => s + i.qty, 0);
+  DS.cartTotal = DS.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+
+  // Update qty widget inline
+  const wrap = document.getElementById(`card-qty-${itemId}`);
+  if (wrap) {
+    wrap.innerHTML = next > 0
+      ? `<div class="card-qty-wrap">
+           <button class="card-qty-btn" onclick="menuQtyChange('${itemId}',-1)">−</button>
+           <div class="card-qty-num">${next}</div>
+           <button class="card-qty-btn" onclick="menuQtyChange('${itemId}',1)">+</button>
+         </div>`
+      : `<button class="btn-card-add" onclick="menuQtyChange('${itemId}',1)">+ Add</button>`;
+  }
+
+  renderSidebar(currentCat);
+  renderMenuFooter();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SIDEBAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderSidebar(activeId) {
+  // Count cart items per category
+  const cartByType = {};
+  DS.cartItems.forEach(item => {
+    // Prefer explicit category if set (distinguishes Breakfast vs Breakfast Combo),
+    // otherwise fall back to type-based bucketing.
+    const cat = item.category
+              ? item.category
+              : item.type === 'chicken'   ? 'chicken'
+              : item.type === 'breakfast' ? 'breakfast'
+              : 'combo';
+    cartByType[cat] = (cartByType[cat] || 0) + (item.qty || 1);
+  });
+
+  document.getElementById('menu-sidebar').innerHTML = CATEGORIES.map(c => {
+    const count = cartByType[c.id] || 0;
+    return `
+    <div class="sidebar-item ${c.id===activeId?'active':''}" onclick="switchCategory('${c.id}')" style="position:relative;">
+      <img src="${c.img}" alt="${c.label}"
+           style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex-shrink:0;"
+           onerror="this.style.display='none';this.nextSibling.style.display='block'"
+      /><span style="display:none;font-size:22px;flex-shrink:0">${c.emoji}</span>
+      <span class="sidebar-label">${c.label}</span>
+      ${count > 0 ? `<span style="position:absolute;top:4px;right:4px;background:#F05A5A;color:#fff;font-size:9px;font-weight:900;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;">${count}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function switchCategory(catId) {
+  currentCat = catId;
+  document.getElementById('menu-cat-title').textContent =
+    CATEGORIES.find(c=>c.id===catId)?.label || catId;
+  renderSidebar(catId);
+  renderGrid(catId);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MENU GRID
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function getItemsForCategory(catId) {
+  if (catId === 'breakfast')       return BREAKFAST_ITEMS;
+  if (catId === 'breakfast-combo') return BREAKFAST_COMBO_ITEMS;
+  if (catId === 'combo')           return BURGER_PIZZA_ITEMS;
+  return CHICKEN_ITEMS;
+}
+
+// Show the price of the default-selected variant on the menu card, if the
+// item's variant config defines prices. Falls back to the item's own price.
+function getCardDisplayPrice(item) {
+  const cfgKey = (typeof VARIANT_CONFIG !== 'undefined' && VARIANT_CONFIG['breakfast_' + item.id]) ? 'breakfast_' + item.id
+               : (typeof VARIANT_CONFIG !== 'undefined' && VARIANT_CONFIG['chicken_'   + item.id]) ? 'chicken_'   + item.id
+               : item.type;
+  const cfg = (typeof VARIANT_CONFIG !== 'undefined') ? VARIANT_CONFIG[cfgKey] : null;
+  if (cfg && Array.isArray(cfg.options)) {
+    const def = cfg.options.find(o => o.default) || cfg.options[0];
+    if (def && def.price) return def.price;
+  }
+  return item.price;
+}
+
+function renderGrid(catId) {
+  const items = getItemsForCategory(catId);
+  document.getElementById('menu-grid').innerHTML = items.map(item => {
+    return `
+    <div class="menu-card" id="card-${item.id}" onclick="openVariantPicker('${item.id}')">
+      <div class="menu-card-top">
+        <div class="menu-card-img"
+             style="background:#f0f0f0;padding:0;overflow:hidden;flex:0 0 100%;">
+          <img src="${item.img}" alt="${item.name}"
+               style="width:100%;height:100%;object-fit:cover;display:block;"
+               onerror="this.src='https://picsum.photos/seed/${item.id}/300/200'"/>
+          ${item.customizable ? `<span class="customizable-badge">Customizable</span>` : ''}
+        </div>
+      </div>
+      <div class="menu-card-bottom">
+        <div class="menu-card-name">${item.name}</div>
+        ${item.desc ? `<div class="menu-card-desc">${item.desc}</div>` : ''}
+        <div class="menu-card-price-row">
+          <div class="menu-card-price">${getCardDisplayPrice(item)}</div>
+          <div id="card-qty-${item.id}" onclick="event.stopPropagation()">
+            ${(DS.menuQty[item.id]||0) > 0
+              ? `<div class="card-qty-wrap">
+                  <button class="card-qty-btn" onclick="menuQtyChange('${item.id}',-1)">−</button>
+                  <div class="card-qty-num">${DS.menuQty[item.id]}</div>
+                  <button class="card-qty-btn" onclick="menuQtyChange('${item.id}',1)">+</button>
+                 </div>`
+              : `<button class="btn-card-add" onclick="menuQtyChange('${item.id}',1)">+ Add</button>`
+            }
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   OPEN DETAIL / VARIANT PICKER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ── Variant config per item type ── */
+const VARIANT_CONFIG = {
+  chicken_c1: {
+    label: 'Choose Fixin Size',
+    options: [
+      { value: 'Default', sub: 'Standard portion',  default: true, img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'White',   sub: 'Medium portion',                   img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+      { value: 'Mixed',   sub: 'Mixed portion',                    img: 'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=200&h=160&fit=crop' },
+      { value: 'Dark',    sub: 'Family-size portion',              img: 'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=200&h=160&fit=crop' },
+    ],
+  },
+  chicken: {
+    label: 'Choose Fixin Size',
+    options: [
+      { value: 'Regular', sub: 'Standard portion',  default: true, img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Medium',  sub: 'Medium portion',                   img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+      { value: 'Family',  sub: 'Family-size portion',              img: 'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=200&h=160&fit=crop' },
+    ],
+  },
+  // b1 & b2 override — size-based picker (A La Carte, Regular Combo, Bo1)
+  breakfast_b1: {
+    label: 'Choose Your Size',
+    options: [
+      { value: 'A La Carte',    sub: 'Item only · no sides',  default: true, price: '$5.99', img: 'https://images.unsplash.com/photo-1550507992-eb63ffee0847?w=200&h=160&fit=crop' },
+      { value: 'Regular Combo', sub: 'Item + regular sides',                 price: '$8.99', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Bo1',           sub: 'Item + Bo1 sides',                     price: '$9.99', img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+    ],
+  },
+  breakfast_b2: {
+    label: 'Choose Your Size',
+    options: [
+      { value: 'A La Carte',    sub: 'Item only · no sides',  default: true, img: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=200&h=160&fit=crop' },
+      { value: 'Regular Combo', sub: 'Item + regular sides',                 img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Bo1',           sub: 'Item + Bo1 sides',                     img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+    ],
+  },
+  // Breakfast Combo — mirror b1/b2 configs for their bc1/bc2 counterparts
+  breakfast_bc1: {
+    label: 'Choose Your Size',
+    options: [
+      { value: 'A La Carte',    sub: 'Item only · no sides',                 price: '$5.99', img: 'https://images.unsplash.com/photo-1550507992-eb63ffee0847?w=200&h=160&fit=crop' },
+      { value: 'Regular Combo', sub: 'Item + regular sides', default: true,  price: '$8.99', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Bo1',           sub: 'Item + Bo1 sides',                     price: '$9.99', img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+    ],
+  },
+  breakfast_bc2: {
+    label: 'Choose Your Size',
+    options: [
+      { value: 'A La Carte',    sub: 'Item only · no sides',                 price: '$5.99', img: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=200&h=160&fit=crop' },
+      { value: 'Regular Combo', sub: 'Item + regular sides', default: true,  price: '$8.99', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Bo1',           sub: 'Item + Bo1 sides',                     price: '$9.99', img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+    ],
+  },
+  // Breakfast Combo — #3 SEC Bisc Meal mirrors #2 BEC (breakfast_bc2) details
+  breakfast_bc3: {
+    label: 'Choose Your Size',
+    options: [
+      { value: 'A La Carte',    sub: 'Item only · no sides',                 price: '$5.99', img: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=200&h=160&fit=crop' },
+      { value: 'Regular Combo', sub: 'Item + regular sides', default: true,  price: '$8.99', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Bo1',           sub: 'Item + Bo1 sides',                     price: '$9.99', img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+    ],
+  },
+  // All other breakfast items — general fixin size picker
+  breakfast: {
+    label: 'Choose Fixin Size',
+    options: [
+      { value: 'Regular', sub: 'Standard portion',  default: true, img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=160&fit=crop' },
+      { value: 'Medium',  sub: 'Medium portion',                   img: 'https://images.unsplash.com/photo-1540914124281-342587941389?w=200&h=160&fit=crop' },
+      { value: 'Family',  sub: 'Family-size portion',              img: 'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=200&h=160&fit=crop' },
+    ],
+  },
+  burgercombo: {
+    label: 'Choose Combo Size',
+    options: [
+      { value: 'Single', sub: '$10.99 · 1 patty', default: true,  img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=160&fit=crop' },
+      { value: 'Double', sub: '$13.99 · 2 patties',               img: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=200&h=160&fit=crop' },
+      { value: 'Triple', sub: '$16.99 · 3 patties',               img: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=200&h=160&fit=crop' },
+      { value: 'Family', sub: '$24.99 · feeds 4',                 img: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=160&fit=crop' },
+    ],
+  },
+  pizza: {
+    label: 'Choose Pizza Size',
+    options: [
+      { value: 'Personal', sub: '6" · serves 1',    default: true,  img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&h=160&fit=crop' },
+      { value: 'Medium',   sub: '12" · serves 2–3',                 img: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=200&h=160&fit=crop' },
+      { value: 'Large',    sub: '16" · serves 3–4',                 img: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=200&h=160&fit=crop' },
+    ],
+  },
+  burger: {
+    label: 'Choose Size',
+    options: [
+      { value: 'Regular', sub: 'Single serving',  default: true,  img: 'https://images.unsplash.com/photo-1586816001966-79b736744398?w=200&h=160&fit=crop' },
+      { value: 'Medium',  sub: 'Medium portion',                   img: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=200&h=160&fit=crop' },
+      { value: 'Large',   sub: 'Large portion',                    img: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=200&h=160&fit=crop' },
+      { value: 'Family',  sub: 'Family size',                      img: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=200&h=160&fit=crop' },
+    ],
+  },
+};
+
+/* Holds the currently selected variant on the picker screen */
+let vpSelectedVariant = '';
+let vpItemId = '';
+let vpImgUrl = '';
+let vpCfg = null;
+let vpFallbackPrice = '';
+
+/* Called when a menu card is tapped */
+function openVariantPicker(itemId) {
+  const all = [...CHICKEN_ITEMS, ...BREAKFAST_ITEMS, ...BREAKFAST_COMBO_ITEMS, ...BURGER_PIZZA_ITEMS];
+  const item = all.find(i => i.id === itemId);
+  if (!item) return;
+
+  // Types with no variant picker — go straight to detail
+  if (item.type === 'bigdeal' || item.type === 'burgerplain') {
+    openDetail(itemId, '');
+    return;
+  }
+
+  vpItemId = itemId;
+  vpImgUrl = item.img;
+  
+  // Use item-specific config key if available (b1, b2, c1, etc.), else fall back to type
+  const cfgKey = VARIANT_CONFIG['breakfast_' + itemId] ? 'breakfast_' + itemId
+               : VARIANT_CONFIG['chicken_' + itemId]   ? 'chicken_' + itemId
+               : item.type;
+  const cfg = VARIANT_CONFIG[cfgKey];
+  if (!cfg) { openDetail(itemId, ''); return; }
+
+  // Set default selected variant
+  const defaultOpt = cfg.options.find(o => o.default) || cfg.options[0];
+  vpSelectedVariant = defaultOpt.value;
+  vpCfg = cfg;
+  vpFallbackPrice = item.price;
+
+  document.getElementById('vp-item-name').textContent = item.name;
+  updateVpHeaderPrice();
+
+  renderVariantPicker(cfg);
+  navigate('screen-variant');
+}
+
+// Update the header pill to reflect the currently selected variant's price.
+// Uses variant.price when defined; falls back to the item's base price.
+function updateVpHeaderPrice() {
+  const el = document.getElementById('vp-item-price');
+  if (!el || !vpCfg) return;
+  const opt = vpCfg.options.find(o => o.value === vpSelectedVariant);
+  el.textContent = (opt && opt.price) ? opt.price : vpFallbackPrice;
+}
+
+function renderVariantPicker(cfg) {
+  const body = document.getElementById('vp-body');
+  body.innerHTML = `
+    <div class="vp-prompt">${cfg.label}</div>
+    <div class="vp-grid">
+      ${cfg.options.map(opt => `
+        <div class="vp-tile ${vpSelectedVariant === opt.value ? 'vp-selected' : ''}"
+             id="vp-tile-${opt.value.replace(/\s/g,'_')}"
+             onclick="vpSelect('${opt.value}')">
+          <div class="vp-tile-img-wrap">
+            <img src="${vpImgUrl}" alt="${opt.value}"
+                 onerror="this.src='https://picsum.photos/seed/${opt.value.replace(/\s/g,'')}/200/160'"/>
+          </div>
+          <div class="vp-tile-info">
+            <div class="vp-tile-name">${opt.value}</div>
+            <div class="vp-tile-sub">${opt.sub}</div>
+            ${opt.price ? `<div class="vp-tile-price" style="font-size:15px;font-weight:800;color:#B7202E;margin-top:4px;">${opt.price}</div>` : ''}
+          </div>
+          <div class="vp-tile-radio"></div>
+        </div>`).join('')}
+    </div>`;
+  updateVpButton();
+}
+
+function vpSelect(value) {
+  vpSelectedVariant = value;
+  document.querySelectorAll('.vp-tile').forEach(tile => {
+    const tileVal = tile.querySelector('.vp-tile-name').textContent;
+    const isSel = tileVal === value;
+    tile.classList.toggle('vp-selected', isSel);
+  });
+  updateVpButton();
+  updateVpHeaderPrice();
+}
+
+function updateVpButton() {
+  const lbl = document.getElementById('vp-btn-label');
+  if (lbl) lbl.textContent = vpSelectedVariant;
+}
+
+function vpConfirm() {
+  openDetail(vpItemId, vpSelectedVariant);
+}
+
+function openDetail(itemId, variant) {
+  const all = [...CHICKEN_ITEMS, ...BREAKFAST_ITEMS, ...BREAKFAST_COMBO_ITEMS, ...BURGER_PIZZA_ITEMS];
+  currentItem = all.find(i => i.id === itemId);
+  if (!currentItem) return;
+
+  const isB         = currentItem.type === 'breakfast';
+  const isBurger    = currentItem.type === 'burger' || currentItem.type === 'burgerplain' || currentItem.type === 'pizza' || currentItem.type === 'burgercombo';
+  const isBigDeal   = currentItem.type === 'bigdeal';
+
+  if (isB) {
+    const itemId = currentItem.id;
+    const isSizePicker = (itemId === 'b1' || itemId === 'b2' || itemId === 'bc1' || itemId === 'bc2' || itemId === 'bc3'); // A La Carte / Small / Medium / Large
+
+    if (isSizePicker) {
+      // Map A La Carte/Regular Combo/Bo1 → fixin/drink sizes
+      const sizeMap = { 'A La Carte': 'Regular', 'Regular Combo': 'Regular', 'Bo1': 'Medium' };
+      let sz = sizeMap[variant] || 'Regular';
+      // #3 SEC Bisc Meal (bc3): Medium is the baseline size — show it selected by default
+      if (itemId === 'bc3' && variant === 'Regular Combo') sz = 'Medium';
+      DS.combo        = (variant === 'A La Carte') ? 'A La Carte' : variant;
+      DS.bSize        = variant; // store original picker value for display
+      DS.fixin1Size   = sz; DS.selectedFixin1=[];
+      DS.fixin2Size   = sz; DS.selectedFixin2=[];
+      DS.drinksSize   = sz; DS.selectedDrinks=[];
+    } else {
+      // Other breakfast items — variant = fixin size (Regular/Medium/Family)
+      const fixinSz = (['Regular','Medium','Family'].includes(variant)) ? variant : 'Regular';
+      DS.fixin1Size = fixinSz; DS.selectedFixin1=[];
+      DS.fixin2Size = fixinSz; DS.selectedFixin2=[];
+      DS.drinksSize = 'Large'; DS.selectedDrinks=[];
+    }
+    DS.selectedBiscuitMods=[]; DS.selectedMeatOpts=[];
+    DS.selectedBreadOpts=[]; DS.selectedBfCondiments=[];
+  } else if (isBurger) {
+    DS.burgerSize = variant || (currentItem.type === 'pizza' ? 'Personal' : currentItem.type === 'burgercombo' ? 'Single' : 'Regular');
+    DS.burgerExtras=[]; DS.burgerCondiments=[]; DS.burgerDrink=[];
+    DS.pizzas=[]; DS.pizzaSide=[]; DS.pizzaBev=[]; DS.pizzaDessert=[]; DS.pizzaApps=[];
+    DS.bcSize=variant||'Single'; DS.bcBurger=[]; DS.bcFries=[]; DS.bcDrink=[];
+    DS.bcDrinkSz='Medium'; DS.bcToppings=[]; DS.bcSauces=[];
+    DS.pizzaBevSize='Regular';
+  } else if (isBigDeal) {
+    DS.byoBurger = { mods:[], bun:'White Bun', protein:'Beef Patty', cheese:'American Cheese', toppings:[], sauces:[] };
+    DS.byoSide = null;
+    DS.byoFriesLoaded = null;
+    DS.byoSauces = [];
+    DS.byoDrink = null;
+    DS.byoOpenSections = { sides: true, loaded: false, sauces: false, drinks: false }; // reset open states
+  } else {
+    // Chicken — variant = fixin size chosen on variant picker screen
+    const c1Sizes = ['Default', 'White', 'Mixed', 'Dark'];
+    const fixinSz = (['Regular','Medium','Family'].includes(variant))  ? variant
+                  : c1Sizes.includes(variant)                          ? variant
+                  : 'Regular';
+    DS.meatType = 'Dark';
+    DS.fixinCount='1 Fixin'; DS.fixinSize=fixinSz; DS.fixinSize2=fixinSz;
+    DS.selectedFixins=[]; DS.selectedFixins2=[]; DS.selectedCondiments=[]; DS.selectedPieces=[];
+  }
+
+  navigate('screen-detail');
+  DS.collapsedSections = new Set(); // fresh item = all sections open
+
+  const _dh=document.getElementById('detail-header');if(_dh)_dh.innerHTML = `
+    <div class="detail-img" style="background:#f0f0f0;padding:0;overflow:hidden;border-radius:12px;">
+      <img src="${currentItem.img}" alt="${currentItem.name}"
+           style="width:125px;height:102px;object-fit:cover;display:block;"
+           onerror="this.onerror=null;this.src='https://picsum.photos/seed/${currentItem.id}/300/200'"/>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="detail-name">${currentItem.name}</div>
+      ${variant && !isBigDeal ? `<div style="margin-top:7px;display:inline-flex;align-items:center;gap:6px;background:#ede9ff;border-radius:20px;padding:4px 12px;">
+        <span style="font-size:11px;font-weight:800;color:#7B61FF;">${DS.bSize || variant}</span>
+        <span style="font-size:10px;color:#9B8CFF;cursor:pointer;text-decoration:underline;" onclick="navigate('screen-variant')">Change</span>
+      </div>` : ''}
+    </div>`;
+  const _bac=document.getElementById('btn-add-cart');if(_bac)_bac.textContent = `Add to Cart | ${currentItem.price}`;
+
+  if (isB)       renderBreakfastDetail(currentItem.id);
+  else if (isBigDeal) renderBYOSingleBurgerComboDetail();
+  else if (isBurger)  renderBurgerDetail(variant || 'Regular');
+  else           renderChickenDetail();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CHICKEN DETAIL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderChickenDetail(scrollTo) {
+  const d = DS;
+  document.getElementById('detail-body').innerHTML = `
+    ${sec('Fixin', '', `
+      <div class="toggle-group">
+        ${['1 Fixin','2 Fixin'].map(f =>
+          `<button class="toggle-btn ${d.fixinCount===f?'sel':''}"
+            onclick="DS.fixinCount='${f}';DS.selectedFixins=[];DS.selectedFixins2=[];renderChickenDetail('sec-selectfixin')">${f}</button>`).join('')}
+      </div>`)}
+    ${sec('Select Fixin', '', `
+      <div class="opt-grid">
+        ${(FIXIN_OPTIONS[d.fixinSize]||FIXIN_OPTIONS.Regular).map(f => {
+          const label = f.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '');
+          return `<button class="opt-btn ${d.selectedFixins.includes(f)?'sel':''}"
+            onclick="tsingle(DS.selectedFixins,'${f}');renderChickenDetail('${d.fixinCount==='2 Fixin'?'sec-selectfixin2':'sec-condimentspacketsincldipsauce'}')">${label}</button>`;
+        }).join('')}
+      </div>`)}
+    ${d.fixinCount === '2 Fixin' ? sec('Select Fixin 2', '', `
+      <div class="opt-grid">
+        ${(FIXIN_OPTIONS[d.fixinSize2]||FIXIN_OPTIONS.Regular).map(f => {
+          const label = f.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '');
+          return `<button class="opt-btn ${d.selectedFixins2.includes(f)?'sel':''}"
+            onclick="tsingle(DS.selectedFixins2,'${f}');renderChickenDetail('sec-condimentspacketsincldipsauce')">${label}</button>`;
+        }).join('')}
+      </div>`) : ''}
+    ${sec('Condiments(Packets incl Dip Sauce)', '', `
+      <div class="opt-grid">
+        ${CONDIMENTS.map(c =>
+          `<button class="opt-btn ${d.selectedCondiments.includes(c)?'sel':''}"
+            onclick="tmulti(DS.selectedCondiments,'${c}',99);renderChickenDetail()">${c}</button>`).join('')}
+      </div>`)}
+    ${sec('Pieces', 'select upto 2 option(s)', `
+      <div class="opt-grid">
+        ${PIECES.map(p =>
+          `<button class="opt-btn ${d.selectedPieces.includes(p)?'sel':''}"
+            onclick="tmulti(DS.selectedPieces,'${p}',2);renderChickenDetail()">${p}</button>`).join('')}
+      </div>`)}
+  `;
+  if (scrollTo) scrollToSection(scrollTo);
+  applyCollapsedState();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BYO SINGLE BURGER COMBO DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const BYO_SIDES = [
+    { name: 'Personal Fries', price: '$4.19', img: 'https://images.unsplash.com/photo-1576107232684-1279f390859f?w=200&h=200&fit=crop' },
+    { name: 'Personal Sweet Fries', price: '$4.89', img: 'https://images.unsplash.com/photo-1518013431117-eb1465fa5752?w=200&h=200&fit=crop' },
+    { name: 'Personal Chips', price: '$3.99', img: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=200&h=200&fit=crop' }
+];
+
+const BYO_DRINKS = [
+    { name: 'Regular Drink', price: '$2.20', img: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=200&h=200&fit=crop' },
+    { name: 'Large Drink', price: '$3.20', img: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&h=200&fit=crop' },
+    { name: 'Bottled Water', price: '$2.00', img: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=200&h=200&fit=crop' },
+    { name: 'Little Moo Shake', price: '$5.40', img: 'https://images.unsplash.com/photo-1541658016709-82535e94bc69?w=200&h=200&fit=crop' },
+    { name: 'Big Moo Shake', price: '$6.90', img: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=200&h=200&fit=crop' }
+];
+
+// Sauce bowl colors matched to reference screenshot — rendered as inline SVG, no network dependency
+function sauceSVG(fill, rim, shine) {
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='${encodeURIComponent(rim)}'/><circle cx='50' cy='50' r='44' fill='${encodeURIComponent(fill)}'/><ellipse cx='38' cy='36' rx='10' ry='6' fill='${encodeURIComponent(shine)}' opacity='0.35'/></svg>`;
+}
+const BYO_SAUCES = [
+    { name: 'Mooyah Sauce', img: sauceSVG('#E8C4A8','#C8A882','#fff') },
+    { name: 'Ketchup',      img: sauceSVG('#C0191A','#8B1010','#FF6B6B') },
+    { name: 'Mustard',      img: sauceSVG('#E8B800','#B08800','#FFE066') },
+    { name: 'Mayo',         img: sauceSVG('#F0ECD8','#C8C4A0','#fff') },
+    { name: 'Ranch',        img: sauceSVG('#E8E4D0','#C0BCAA','#fff') },
+    { name: 'Cholula',      img: sauceSVG('#D45A00','#A03C00','#FF9940') },
+    { name: 'A1 Sauce',     img: sauceSVG('#3A1A0A','#200A00','#6B3A20') },
+    { name: 'BBQ Sauce',    img: sauceSVG('#7A1A00','#4A0A00','#C04020') },
+];
+
+const BURGER_BUNS    = ['White Bun','Wheat Bun','Lettuce Wrap','No Bun','Brioche Bun'];
+const BURGER_PROTEIN = ['Beef Patty','Turkey Patty','Veggie Patty','Add Extra Patty'];
+const BURGER_CHEESE  = ['American Cheese','Swiss Cheese','Cheddar','Pepper Jack','No Cheese'];
+const BURGER_TOPPINGS= ['Lettuce','Tomato','Onion','Pickles','Jalapeños','Mushrooms','Avocado','Fried Egg','Bacon'];
+const BURGER_SAUCES  = ['Ketchup','Mustard','Mayo','BBQ Sauce','Ranch','MOOYAH Sauce','Sriracha','No Sauce'];
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BYO SINGLE BURGER COMBO DETAIL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderBYOSingleBurgerComboDetail() {
+  const d = DS;
+  let totalCost = 8.29; // Base price
+
+  // Helper to find price string and add to total
+  const addCost = (itemName, list) => {
+      const item = list.find(i => i.name === itemName);
+      if (item) totalCost += parseFloat(item.price.replace('$', ''));
+  };
+
+  if (d.byoSide) addCost(d.byoSide, BYO_SIDES);
+  if (d.byoFriesLoaded === 'Make it Loaded') totalCost += 2.30;
+  if (d.byoDrink) addCost(d.byoDrink, BYO_DRINKS);
+
+  // Update Cart Button
+  const _bac = document.getElementById('btn-add-cart');
+  if (_bac) _bac.textContent = `Add to Cart | $${totalCost.toFixed(2)}`;
+  
+  // Custom Section Builder with direct inline toggle for BYO specifically
+  const byoSec = (id, label, reqLabel, countStr, bodyHtml, btnAction, isOpenKey) => {
+    const isOpen = d.byoOpenSections[isOpenKey];
+    return `
+    <div class="detail-section" style="margin-bottom:12px;">
+      <div class="detail-sec-hdr" style="justify-content:space-between;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+           <span class="detail-sec-label">${label} ${countStr ? `<span style="color:#888;">${countStr}</span>` : ''}</span>
+           ${reqLabel ? `<span style="font-size:10px;color:#999;">${reqLabel}</span>` : ''}
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${label.includes('BYO') ? `<span style="font-size:10px; font-weight:800; color:#F05A5A; background:#FFF0F0; padding:4px 8px; border-radius:12px;">REQUIRED</span>` : ''}
+          ${label.includes('Drinks') && !d.byoDrink ? `<span style="font-size:10px; font-weight:800; color:#F05A5A; background:#FFF0F0; padding:4px 8px; border-radius:12px;">REQUIRED</span>` : ''}
+          ${label.includes('Drinks') && d.byoDrink ? `<span style="font-size:10px; font-weight:800; color:#3CB955; background:#F0FFF4; padding:4px 8px; border-radius:12px;">✓ Selected</span>` : ''}
+          <button style="background:#7B61FF; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;" onclick="${btnAction}">${label.includes('BYO') ? 'Customize' : 'Modify'}</button>
+        </div>
+      </div>
+      <div class="detail-sec-body" id="byo-body-${id}" style="padding:16px 14px; background:#fafafa; border-top:1px solid #eee; display:${isOpen ? 'block' : 'none'};">
+         ${bodyHtml}
+      </div>
+    </div>`;
+  };
+
+  const isCustomized = d.byoBurger.mods && d.byoBurger.mods.length > 0;
+
+  document.getElementById('detail-body').innerHTML = `
+    <!-- BYO Single Burger Customize Section -->
+    <div class="detail-section" style="margin-bottom:12px;">
+      <div class="detail-sec-hdr" style="justify-content:space-between;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+           <span class="detail-sec-label">BYO Single Burger</span>
+           ${isCustomized ? `<span style="font-size:10px; color:#888;">Customized</span>` : ''}
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${isCustomized
+            ? `<span style="font-size:10px; font-weight:800; color:#3CB955; background:#F0FFF4; padding:4px 8px; border-radius:12px;">✓ Customized</span>`
+            : `<span style="font-size:10px; font-weight:800; color:#F05A5A; background:#FFF0F0; padding:4px 8px; border-radius:12px;">REQUIRED</span>`}
+          <button style="background:#7B61FF; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;" onclick="openBurgerModifier('byo')">Customize</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combo Sides -->
+    ${byoSec('sides', 'Combo Sides', d.byoSide || 'Select any 1 option', `(${d.byoSide ? '1' : '0'}/1)`, `
+      <div class="byo-card-grid">
+        ${BYO_SIDES.map(s => `
+          <div class="byo-card-tile ${d.byoSide === s.name ? 'sel' : ''}" onclick="DS.byoSide='${s.name}'; if('${s.name}'==='Personal Chips') DS.byoFriesLoaded=null; renderBYOSingleBurgerComboDetail();">
+             <div class="byo-card-img-wrap"><img src="${s.img}" alt="${s.name}" onerror="this.onerror=null;this.src='https://picsum.photos/seed/'+encodeURIComponent('${s.name}')+'/200/200'"/></div>
+             <div class="byo-card-info">
+                <div class="byo-card-name">${s.name}</div>
+                <div class="byo-card-price">${s.price}</div>
+             </div>
+          </div>
+        `).join('')}
+      </div>
+    `, "const b=document.getElementById('byo-body-sides'); const isOp = b.style.display==='none'; b.style.display=isOp?'block':'none'; DS.byoOpenSections.sides = isOp;", 'sides')}
+
+    <!-- Loaded Fries — shown for Personal Fries and Personal Sweet Fries, hidden for Personal Chips -->
+    ${(d.byoSide === 'Personal Fries' || d.byoSide === 'Personal Sweet Fries') ? byoSec('loaded', 'Would You Like Your Fries Loaded?', 'Select up to 1 option(s)', `(${d.byoFriesLoaded ? '1' : '0'}/1)`, `
+      <div class="byo-card-grid">
+          <div class="byo-card-tile ${d.byoFriesLoaded === 'Make it Loaded' ? 'sel' : ''}" onclick="DS.byoFriesLoaded = DS.byoFriesLoaded === 'Make it Loaded' ? null : 'Make it Loaded'; renderBYOSingleBurgerComboDetail();">
+             <div class="byo-card-img-wrap"><img src="https://images.unsplash.com/photo-1585109649139-366815a0d713?w=200&h=200&fit=crop" alt="Loaded Fries" onerror="this.onerror=null;this.src='https://picsum.photos/seed/LoadedFries/200/200'"/></div>
+             <div class="byo-card-info">
+                <div class="byo-card-name">Make it Loaded</div>
+                <div class="byo-card-price">$2.30</div>
+             </div>
+          </div>
+      </div>
+    `, "const b=document.getElementById('byo-body-loaded'); const isOp = b.style.display==='none'; b.style.display=isOp?'block':'none'; DS.byoOpenSections.loaded = isOp;", 'loaded') : ''}
+
+    <!-- Sauces — only shown after a side is selected -->
+    ${d.byoSide ? byoSec('sauces', 'Select Sauces', 'Select up to 3 option(s)', `(${d.byoSauces.length}/3)`, `
+      <div class="byo-card-grid sauces">
+        ${BYO_SAUCES.map(s => `
+          <div class="byo-card-tile ${d.byoSauces.includes(s.name) ? 'sel' : ''}" style="border:none; background:transparent;" onclick="tmulti(DS.byoSauces, '${s.name}', 3); renderBYOSingleBurgerComboDetail();">
+             <div class="byo-card-img-wrap"><img src="${s.img}" alt="${s.name}"/></div>
+             <div class="byo-card-info">
+                <div class="byo-card-name">${s.name}</div>
+             </div>
+          </div>
+        `).join('')}
+      </div>
+    `, "const b=document.getElementById('byo-body-sauces'); const isOp = b.style.display==='none'; b.style.display=isOp?'block':'none'; DS.byoOpenSections.sauces = isOp;", 'sauces') : ''}
+
+    <!-- Drinks — only shown after a side is selected -->
+    ${d.byoSide ? byoSec('drinks', 'Combo Drinks', d.byoDrink || 'Select any 1 option', `(${d.byoDrink ? '1' : '0'}/1)`, `
+      <div class="byo-card-grid">
+        ${BYO_DRINKS.map(s => `
+          <div class="byo-card-tile ${d.byoDrink === s.name ? 'sel' : ''}" onclick="DS.byoDrink='${s.name}'; renderBYOSingleBurgerComboDetail();">
+             <div class="byo-card-img-wrap"><img src="${s.img}" alt="${s.name}" onerror="this.onerror=null;this.src='https://picsum.photos/seed/'+encodeURIComponent('${s.name}')+'/200/200'"/></div>
+             <div class="byo-card-info">
+                <div class="byo-card-name">${s.name}</div>
+                <div class="byo-card-price">${s.price}</div>
+             </div>
+          </div>
+        `).join('')}
+      </div>
+    `, "const b=document.getElementById('byo-body-drinks'); const isOp = b.style.display==='none'; b.style.display=isOp?'block':'none'; DS.byoOpenSections.drinks = isOp;", 'drinks') : ''}
+  `;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BURGER MODIFIER SCREEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let currentBurgerIdx = 0;
+let isClassicBurgerCombo = false;
+
+function openBurgerModifier(idx, isClassic = false) {
+  currentBurgerIdx = idx;
+  isClassicBurgerCombo = isClassic;
+  
+  if (idx === 'byo') {
+      // Setup modifier for BYO Single Burger
+      navigate('screen-burger-mod');
+      renderBurgerModifier();
+      return;
+  }
+
+  if (!DS.bdBurgers[idx]) DS.bdBurgers[idx] = { mods:[], bun:'White Bun', protein:'Beef Patty', cheese:'American Cheese', toppings:[], sauces:[] };
+  // Ensure sub-fields exist
+  const b = DS.bdBurgers[idx];
+  if (!b.bun)      b.bun = 'White Bun';
+  if (!b.protein)  b.protein = 'Beef Patty';
+  if (!b.cheese)   b.cheese = 'American Cheese';
+  if (!b.toppings) b.toppings = [];
+  if (!b.sauces)   b.sauces = [];
+
+  navigate('screen-burger-mod');
+  renderBurgerModifier();
+}
+
+function renderBurgerModifier() {
+  const idx = currentBurgerIdx;
+  
+  let b, title;
+  
+  if (idx === 'byo') {
+      b = DS.byoBurger;
+      title = "BYO Single Burger";
+  } else if (isClassicBurgerCombo) {
+      b = DS.bdBurgers[idx];
+      title = "Classic Burger Combo";
+  } else {
+      b = DS.bdBurgers[idx];
+      title = (b.chosenName || `Burger ${idx + 1}`).replace(/^Big Deal\s*/i, '');
+  }
+
+  document.getElementById('burger-mod-title').textContent = title;
+  document.getElementById('burger-mod-body').innerHTML = `
+    ${sec('Bun Choice', '', `
+      <div class="opt-grid">
+        ${BURGER_BUNS.map(v =>
+          `<button class="opt-btn ${b.bun===v?'sel':''}"
+            onclick="updateBurgerModField('${idx}', 'bun', '${v}')">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Protein', '', `
+      <div class="opt-grid">
+        ${BURGER_PROTEIN.map(v =>
+          `<button class="opt-btn ${b.protein===v?'sel':''}"
+            onclick="updateBurgerModField('${idx}', 'protein', '${v}')">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Cheese', '', `
+      <div class="opt-grid">
+        ${BURGER_CHEESE.map(v =>
+          `<button class="opt-btn ${b.cheese===v?'sel':''}"
+            onclick="updateBurgerModField('${idx}', 'cheese', '${v}')">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Toppings', '', `
+      <div class="opt-grid">
+        ${BURGER_TOPPINGS.map(v =>
+          `<button class="opt-btn ${b.toppings.includes(v)?'sel':''}"
+            onclick="updateBurgerModMulti('${idx}', 'toppings', '${v}', 99)">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Sauces', '', `
+      <div class="opt-grid">
+        ${BURGER_SAUCES.map(v =>
+          `<button class="opt-btn ${b.sauces.includes(v)?'sel':''}"
+            onclick="updateBurgerModMulti('${idx}', 'sauces', '${v}', 99)">${v}</button>`).join('')}
+      </div>`)}
+  `;
+}
+
+function updateBurgerModField(idx, field, val) {
+    if (idx === 'byo') DS.byoBurger[field] = val;
+    else DS.bdBurgers[idx][field] = val;
+    renderBurgerModifier();
+}
+
+function updateBurgerModMulti(idx, field, val, max) {
+    const arr = idx === 'byo' ? DS.byoBurger[field] : DS.bdBurgers[idx][field];
+    tmulti(arr, val, max);
+    renderBurgerModifier();
+}
+
+
+function saveBurgerMods() {
+  const idx = currentBurgerIdx;
+  
+  if (idx === 'byo') {
+      const b = DS.byoBurger;
+      b.mods = [b.bun, b.protein, b.cheese, ...b.toppings, ...b.sauces].filter(Boolean);
+      navigate('screen-detail');
+      renderBYOSingleBurgerComboDetail();
+      return;
+  }
+
+  if (isClassicBurgerCombo) {
+      const b = DS.bdBurgers[idx];
+      b.mods = [b.bun, b.protein, b.cheese, ...b.toppings, ...b.sauces].filter(Boolean);
+      navigate('screen-detail');
+      _renderBurgerComboDetail(DS.bcSize);
+      return;
+  }
+
+  // Compile mods summary for display on the big deal page
+  const b = DS.bdBurgers[idx];
+  b.mods = [b.bun, b.protein, b.cheese, ...b.toppings, ...b.sauces].filter(Boolean);
+  navigate('screen-detail');
+  renderBigDealDetail();
+  // #9 scroll to the burger rows section
+  scrollToSection('sec-your4burgers');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PIZZA DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const PIZZA_SIZES_COUNT = {
+  Personal: 2, Medium: 2, Large: 2
+};
+
+const CICIS_PIZZAS = [
+  'Classic Pepperoni',
+  'Mac & Cheese Pizza',
+  'Buffalo Chicken Pizza',
+  'Bacon Cheddar Pizza',
+  'Zesty Veggie Pizza',
+  'Spinach Alfredo Pizza',
+  'BBQ Chicken Pizza',
+  'Five Cheese Pizza',
+];
+
+const PIZZA_CRUSTS    = ['Original','Thin & Crispy','Stuffed Crust','Gluten-Free'];
+const PIZZA_SAUCES_P  = ['Classic Tomato','BBQ','Alfredo','Garlic Butter','No Sauce'];
+const PIZZA_CHEESE_P  = ['Mozzarella','Extra Cheese','Light Cheese','No Cheese','Vegan Cheese'];
+const PIZZA_TOPPINGS_P= ['Pepperoni','Sausage','Bacon','Chicken','Ham','Mushrooms','Bell Peppers','Onions','Jalapeños','Black Olives','Pineapple','Spinach','Tomatoes','Anchovies'];
+const PIZZA_SIDES     = ['Garden Salad','Caesar Salad','Garlic Bread','Mozzarella Sticks','Fries'];
+const PIZZA_BEVERAGES = {
+  Regular: ['Reg Fountain Drink','Reg Lemonade','Reg Iced Tea','Reg Water','Reg Root Beer Float'],
+  Medium:  ['Med Fountain Drink','Med Lemonade','Med Iced Tea','Med Water','Med Root Beer Float'],
+  Family:  ['Family Fountain Drink','Family Lemonade','Family Iced Tea','Family Water','Family Root Beer Float'],
+};
+const PIZZA_DESSERTS  = ['Churro Bites','Chocolate Lava Cake','Cinnamon Knots','Cheesecake Slice'];
+const PIZZA_APPS      = ['Mozzarella Sticks','Bruschetta','Loaded Fries','Chicken Wings','Onion Rings'];
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PIZZA DETAIL (main page)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderBurgerDetail(initSize) {
+  const isPizza       = currentItem?.type === 'pizza';
+  const isBurgerCombo = currentItem?.type === 'burgercombo';
+  if (isPizza)       { _renderPizzaDetail(initSize); return; }
+  if (isBurgerCombo) { _renderBurgerComboDetail(initSize); return; }
+  _renderNonPizzaDetail(initSize);
+}
+
+const BURGER_CHOICES  = ['Classic Cheeseburger','Bacon BBQ Burger','Mushroom Swiss Burger','Avocado Ranch Burger','Veggie Burger','Double Smash Burger'];
+const BURGER_FRIES    = ['Regular Hand-Cut Fries','Sweet Potato Fries','Onion Rings','Side Salad','No Fries'];
+const BURGER_DRINKS_C = {
+  Small:  ['Small Cola','Small Diet Cola','Small Lemonade','Small Iced Tea','Small Water','Small Root Beer'],
+  Medium: ['Med Cola','Med Diet Cola','Med Lemonade','Med Iced Tea','Med Water','Med Root Beer'],
+  Large:  ['Large Cola','Large Diet Cola','Large Lemonade','Large Iced Tea','Large Water','Large Root Beer'],
+};
+const BURGER_TOPPINGS_C = ['Lettuce','Tomato','Onion','Pickles','Jalapeños','Mushrooms','Avocado','Fried Egg','Bacon'];
+const BURGER_SAUCES_C   = ['Ketchup','Mustard','Mayo','BBQ Sauce','Ranch','Special Sauce','Sriracha','No Sauce'];
+
+function _renderBurgerComboDetail(initSize) {
+  const d = DS;
+  if (!DS.bcSize)    DS.bcSize = initSize || 'Single';
+  if (initSize)      DS.bcSize = initSize;
+  // Use bdBurger[0] for the Classic Burger Combo customization, similar to how BYO works
+  if (!DS.bdBurgers) DS.bdBurgers = [{}];
+  if (!DS.bdBurgers[0]) DS.bdBurgers[0] = { mods:[], bun:'White Bun', protein:'Beef Patty', cheese:'American Cheese', toppings:[], sauces:[] };
+  
+  if (!DS.bcFries)   DS.bcFries = [];
+  if (!DS.bcDrink)   DS.bcDrink = [];
+  if (!DS.bcDrinkSz) DS.bcDrinkSz = 'Medium';
+  if (!DS.bcToppings)DS.bcToppings = [];
+  if (!DS.bcSauces)  DS.bcSauces = [];
+
+  const prices = { Single:'$10.99', Double:'$13.99', Triple:'$16.99', Family:'$24.99' };
+  const _bac=document.getElementById('btn-add-cart');if(_bac)_bac.textContent = `Add to Cart | ${prices[DS.bcSize]||'$10.99'}`;
+
+  // Helper to show if customized
+  const b = DS.bdBurgers[0];
+  const isCustomized = b.mods && b.mods.length > 0;
+
+  document.getElementById('detail-body').innerHTML = `
+    <!-- Classic Burger Combo Customize Section -->
+    <div class="detail-section" style="margin-bottom:12px;">
+      <div class="detail-sec-hdr" style="justify-content:space-between;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+           <span class="detail-sec-label">Classic Burger Combo</span>
+           ${isCustomized ? `<span style="font-size:10px; color:#888;">Customized</span>` : ''}
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:10px; font-weight:800; color:#F05A5A; background:#FFF0F0; padding:4px 8px; border-radius:12px;">REQUIRED</span>
+          <button style="background:#7B61FF; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;" onclick="openBurgerModifier(0, true)">Customize</button>
+        </div>
+      </div>
+    </div>
+
+    ${sec('Toppings', '', `
+      <div class="opt-grid">
+        ${BURGER_TOPPINGS_C.map(t =>
+          `<button class="opt-btn ${DS.bcToppings.includes(t)?'sel':''}"
+            onclick="tmulti(DS.bcToppings,'${t}',99);_renderBurgerComboDetail(DS.bcSize)">${t}</button>`).join('')}
+      </div>`)}
+    ${sec('Sauces', '', `
+      <div class="opt-grid">
+        ${BURGER_SAUCES_C.map(s =>
+          `<button class="opt-btn ${DS.bcSauces.includes(s)?'sel':''}"
+            onclick="tmulti(DS.bcSauces,'${s}',99);_renderBurgerComboDetail(DS.bcSize)">${s}</button>`).join('')}
+      </div>`)}
+    ${sec('Fries', '', `
+      <div class="opt-grid">
+        ${BURGER_FRIES.map(f =>
+          `<button class="opt-btn ${DS.bcFries.includes(f)?'sel':''}"
+            onclick="tsingle(DS.bcFries,'${f}');_renderBurgerComboDetail(DS.bcSize)">${f}</button>`).join('')}
+      </div>`)}
+    ${sec('Drink', '', `
+      <div class="opt-grid">
+        ${['Cola','Diet Cola','Lemonade','Iced Tea','Water','Root Beer'].map(dr =>
+          `<button class="opt-btn ${DS.bcDrink.includes(dr)?'sel':''}"
+            onclick="tsingle(DS.bcDrink,'${dr}');_renderBurgerComboDetail(DS.bcSize)">${dr}</button>`).join('')}
+      </div>`)}
+  `;
+  applyCollapsedState();
+}
+
+function _renderPizzaDetail(initSize) {
+  const sizes = ['Personal','Medium','Large'];
+  if (!DS.burgerSize || !sizes.includes(DS.burgerSize)) DS.burgerSize = initSize || 'Personal';
+  else if (initSize) DS.burgerSize = initSize;
+
+  // Always show 2 pizzas regardless of size
+  const pizzaCount = 2;
+  if (!DS.pizzas) DS.pizzas = [];
+  while (DS.pizzas.length < pizzaCount) DS.pizzas.push({ crust:'Original', sauce:'Classic Tomato', cheese:'Mozzarella', toppings:[], mods:[], chosenName:'' });
+
+  if (!DS.pizzaSide)   DS.pizzaSide = [];
+  if (!DS.pizzaBev)    DS.pizzaBev = [];
+  if (!DS.pizzaDessert)DS.pizzaDessert = [];
+  if (!DS.pizzaApps)   DS.pizzaApps = [];
+
+  const pizzaRows = Array.from({length: pizzaCount}, (_, i) => {
+    const p = DS.pizzas[i] || {};
+    const chosen = p.chosenName || '';
+    // Show 4 pizza options per slot, prefixed with size
+    const pizzaOptions = CICIS_PIZZAS.slice(0, 4);
+    const tiles = pizzaOptions.map(name => {
+      const fullName = `${DS.burgerSize} ${name}`;
+      const isSel = chosen === fullName;
+      return `
+      <div class="pizza-option-tile ${isSel ? 'pizza-tile-sel' : ''}"
+           onclick="selectPizza(${i},'${fullName}')">
+        <div class="pizza-tile-name">${fullName}</div>
+        ${isSel ? `<span class="pizza-tile-check">✓</span>` : `<span class="pizza-tile-arrow">›</span>`}
+      </div>`;
+    }).join('');
+    const modSummary = p.mods && p.mods.length
+      ? `<div class="pizza-chosen-mods">Customized: ${p.mods.slice(0,3).join(', ')}${p.mods.length>3?'…':''}</div>`
+      : (chosen ? `<div class="pizza-chosen-mods">Tap again to customize</div>` : '');
+
+    return `
+    <div class="pizza-slot">
+      <div class="pizza-slot-header">
+        <div class="bd-burger-num" style="background:#E8901A;width:26px;height:26px;font-size:13px">${i+1}</div>
+        <span class="pizza-slot-title">Pizza ${i+1}${chosen ? ': ' + chosen : ' — choose below'}</span>
+      </div>
+      <div class="pizza-tile-grid">${tiles}</div>
+      ${modSummary}
+    </div>`;
+  }).join('');
+
+  document.getElementById('detail-body').innerHTML = `
+    ${sec('Your Pizzas', '⚠ Required · Select 2', `
+      <div class="pizza-slots">${pizzaRows}</div>`)}
+    ${sec('Recommended Beverages', `
+        <div class="size-tabs" style="display:inline-flex;gap:4px;">
+          ${['Regular','Medium','Family'].map(sz =>
+            `<button class="size-tab ${(DS.pizzaBevSize||'Regular')===sz?'sel':''}"
+              onclick="event.stopPropagation();DS.pizzaBevSize='${sz}';DS.pizzaBev=[];renderBurgerDetail(DS.burgerSize)">${sz}</button>`).join('')}
+        </div>`, `
+      <div class="opt-grid">
+        ${(PIZZA_BEVERAGES[DS.pizzaBevSize||'Regular']).map(b => {
+          const label = b.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '');
+          return `<button class="opt-btn ${DS.pizzaBev.includes(b)?'sel':''}"
+            onclick="tsingle(DS.pizzaBev,'${b}');renderBurgerDetail(DS.burgerSize)">${label}</button>`;
+        }).join('')}
+      </div>`)}
+    ${sec('Recommended Desserts', '', `
+      <div class="opt-grid">
+        ${PIZZA_DESSERTS.map(d =>
+          `<button class="opt-btn ${DS.pizzaDessert.includes(d)?'sel':''}"
+            onclick="tmulti(DS.pizzaDessert,'${d}',2);renderBurgerDetail(DS.burgerSize)">${d}</button>`).join('')}
+      </div>`)}
+    ${sec('Recommended Sides And Apps', '', `
+      <div class="opt-grid">
+        ${PIZZA_APPS.map(a =>
+          `<button class="opt-btn ${DS.pizzaApps.includes(a)?'sel':''}"
+            onclick="tmulti(DS.pizzaApps,'${a}',99);renderBurgerDetail(DS.burgerSize)">${a}</button>`).join('')}
+      </div>`)}
+  `;
+}
+
+/* Non-pizza burger detail (Veggie Burger etc.) */
+function _renderNonPizzaDetail(initSize) {
+  if (!DS.burgerSize) DS.burgerSize = initSize || 'Regular';
+  if (!DS.burgerExtras) DS.burgerExtras = [];
+  if (!DS.burgerCondiments) DS.burgerCondiments = [];
+  if (!DS.burgerDrink) DS.burgerDrink = [];
+  if (initSize) DS.burgerSize = initSize;
+
+  document.getElementById('detail-body').innerHTML = `
+    ${sec('Extras', '', `
+      <div class="opt-grid">
+        ${['Extra Cheese','Bacon','Jalapeños','Avocado','Fried Egg','Mushrooms'].map(e =>
+          `<button class="opt-btn ${DS.burgerExtras.includes(e)?'sel':''}"
+            onclick="tmulti(DS.burgerExtras,'${e}',99);renderBurgerDetail(DS.burgerSize)">${e}</button>`).join('')}
+      </div>`)}
+    ${sec('Condiments', '', `
+      <div class="opt-grid">
+        ${['Ketchup','Mustard','Mayo','BBQ Sauce','Ranch','Hot Sauce'].map(c =>
+          `<button class="opt-btn ${DS.burgerCondiments.includes(c)?'sel':''}"
+            onclick="tmulti(DS.burgerCondiments,'${c}',99);renderBurgerDetail(DS.burgerSize)">${c}</button>`).join('')}
+      </div>`)}
+    ${sec('Drinks', '', `
+      <div class="opt-grid">
+        ${['Small Cola','Medium Cola','Large Cola','Water','Lemonade','Iced Tea'].map(dr =>
+          `<button class="opt-btn ${DS.burgerDrink.includes(dr)?'sel':''}"
+            onclick="tsingle(DS.burgerDrink,'${dr}');renderBurgerDetail(DS.burgerSize)">${dr}</button>`).join('')}
+      </div>`)}
+  `;
+}
+
+function selectPizza(slotIdx, pizzaName) {
+  if (!DS.pizzas[slotIdx]) DS.pizzas[slotIdx] = { crust:'Original', sauce:'Classic Tomato', cheese:'Mozzarella', toppings:[], mods:[] };
+  DS.pizzas[slotIdx].chosenName = pizzaName;
+  // Open modifier for this pizza
+  openPizzaModifier(slotIdx);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PIZZA MODIFIER SCREEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let currentPizzaIdx = 0;
+
+function openPizzaModifier(idx) {
+  currentPizzaIdx = idx;
+  if (!DS.pizzas[idx]) DS.pizzas[idx] = { crust:'Original', sauce:'Classic Tomato', cheese:'Mozzarella', toppings:[], mods:[] };
+  navigate('screen-pizza-mod');
+  renderPizzaModifier();
+}
+
+function renderPizzaModifier() {
+  const idx = currentPizzaIdx;
+  const p = DS.pizzas[idx];
+  const currentName = p.chosenName || CICIS_PIZZAS[idx];
+  document.getElementById('pizza-mod-title').textContent = `Pizza ${idx + 1}: ${currentName}`;
+
+  document.getElementById('pizza-mod-body').innerHTML = `
+    ${sec('Choose Pizza', '', `
+      <div class="opt-grid">
+        ${CICIS_PIZZAS.map(name =>
+          `<button class="opt-btn ${(p.chosenName||CICIS_PIZZAS[idx])===name?'sel':''}"
+            onclick="DS.pizzas[${idx}].chosenName='${name}';renderPizzaModifier()">${name}</button>`).join('')}
+      </div>`)}
+    ${sec('Crust', '', `
+      <div class="opt-grid">
+        ${PIZZA_CRUSTS.map(v =>
+          `<button class="opt-btn ${p.crust===v?'sel':''}"
+            onclick="DS.pizzas[${idx}].crust='${v}';renderPizzaModifier()">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Sauce', '', `
+      <div class="opt-grid">
+        ${PIZZA_SAUCES_P.map(v =>
+          `<button class="opt-btn ${p.sauce===v?'sel':''}"
+            onclick="DS.pizzas[${idx}].sauce='${v}';renderPizzaModifier()">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Cheese', '', `
+      <div class="opt-grid">
+        ${PIZZA_CHEESE_P.map(v =>
+          `<button class="opt-btn ${p.cheese===v?'sel':''}"
+            onclick="DS.pizzas[${idx}].cheese='${v}';renderPizzaModifier()">${v}</button>`).join('')}
+      </div>`)}
+    ${sec('Toppings', '', `
+      <div class="opt-grid">
+        ${PIZZA_TOPPINGS_P.map(v =>
+          `<button class="opt-btn ${p.toppings.includes(v)?'sel':''}"
+            onclick="tmulti(DS.pizzas[${idx}].toppings,'${v}',99);renderPizzaModifier()">${v}</button>`).join('')}
+      </div>`)}
+  `;
+}
+
+function savePizzaMods() {
+  const idx = currentPizzaIdx;
+  const p = DS.pizzas[idx];
+  if (!p.chosenName) p.chosenName = CICIS_PIZZAS[idx];
+  p.mods = [p.crust, p.sauce, p.cheese, ...p.toppings].filter(Boolean);
+  navigate('screen-detail');
+  renderBurgerDetail(DS.burgerSize);
+}
+
+function setBreakfastCombo(combo, itemId) {
+  DS.combo = combo;
+  DS.selectedFixin1 = [];
+  DS.selectedFixin2 = [];
+  DS.selectedDrinks = [];
+
+  if (combo === 'Regular Combo') {
+    // Regular Combo: fixin default Regular, drinks default Medium
+    DS.fixin1Size  = 'Regular';
+    DS.fixin2Size  = 'Regular';
+    DS.drinksSize  = 'Medium';
+  } else if (combo === 'Bo1') {
+    // Bo1: fixin default Medium, drinks default Large
+    DS.fixin1Size  = 'Medium';
+    DS.fixin2Size  = 'Medium';
+    DS.drinksSize  = 'Large';
+  } else if (combo === 'Bo2') {
+    // Bo2: both fixins default Regular, drinks default Large
+    DS.fixin1Size  = 'Regular';
+    DS.fixin2Size  = 'Regular';
+    DS.drinksSize  = 'Large';
+  }
+  // A La Carte: no fixin/drink shown, no defaults needed
+  renderBreakfastDetail(itemId);
+}
+
+/* ── Breakfast Detail ── */
+function renderBreakfastDetail(itemId, scrollTo) {
+  const d = DS;
+  // b1 = size picker, NO size tabs on detail (read-only badge)
+  // b2 = size picker, WITH interactive Small/Medium/Large tabs on detail
+  // others = fixin size picker, read-only badge
+  const isB1 = (itemId === 'b1' || itemId === 'bc1');
+  const isB2 = (itemId === 'b2' || itemId === 'bc2' || itemId === 'bc3');
+  const isBc2 = (itemId === 'bc2' || itemId === 'bc3');
+  const isSizePicker = isB1 || isB2;
+  const showFixin = isSizePicker
+    ? (d.combo !== 'A La Carte')
+    : (d.combo === 'Regular Combo' || d.combo === 'Bo1' || d.combo === 'Bo2');
+  const showFixin2 = !isSizePicker && d.combo === 'Bo2';
+  const showDrinks = showFixin;
+
+  // ── Shared section builders ──
+  const comboSec = () => sec('Combo', '', `
+    <div class="toggle-group">
+      ${['A La Carte','Regular Combo','Bo1','Bo2'].map(c =>
+        `<button class="toggle-btn ${d.combo===c?'sel':''}"
+          onclick="setBreakfastCombo('${c}','${itemId}')">${c}</button>`).join('')}
+    </div>`);
+
+  // Per-item size pricing config. Returns null when the item doesn't have
+  // size-based upcharges. When present, each key is a size label ('Small',
+  // 'Medium', 'Large') mapping to a numeric upcharge in dollars.
+  const perItemSizePricing = (id) => {
+    if (d.combo !== 'Regular Combo') return null;
+    if (id === 'bc3') return { Small: -1, Medium: 0, Large: 2 };
+    if (id === 'bc2') return { Small: 0, Medium: 1, Large: 2 };
+    return null;
+  };
+  const sizePricing = perItemSizePricing(itemId);
+  const fmtDelta = (n) => n === 0 ? '$0' : (n > 0 ? '+$' + n : '-$' + Math.abs(n));
+
+  // Renders one section (Fixin or Drinks) as clean base-name cards. Tapping
+  // a card opens the size picker modal; the chosen size is stored as a
+  // prefix on the item name inside DS[selKey] (e.g. "Medium Bo-Tato Rounds").
+  const renderPerItemSizeSection = (title, canonicalItems, selKey, kind) => {
+    return sec(title, '', `
+      <div class="opt-grid">
+        ${canonicalItems.map(baseName => {
+          // Is any size-variant of this base name currently selected?
+          const selected = (DS[selKey] || []).find(v =>
+            v.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal)\s+/i, '').toLowerCase() === baseName.toLowerCase()
+          );
+          const selSize = selected ? selected.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal).*/i, '$1') : '';
+          const selSizeNorm = selSize === 'Reg' ? 'Small' : (selSize === 'Med' ? 'Medium' : (selSize === 'Fam' || selSize === 'Family' ? 'Large' : selSize));
+          const chip = selected
+            ? `<span style="position:absolute;top:6px;right:6px;background:#fff;color:#7B61FF;font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;z-index:2;box-shadow:0 1px 2px rgba(0,0,0,0.1);">${selSizeNorm}</span>`
+            : '';
+          return `<button class="opt-btn ${selected?'sel':''}" style="position:relative;"
+            onclick="openItemSizePicker('${itemId}','${kind}','${selKey}','${baseName.replace(/'/g,"\\'")}')">${chip}${baseName}</button>`;
+        }).join('')}
+      </div>`);
+  };
+
+  // fixinSec:
+  //   bc2/bc3 in Regular Combo → per-item size picker modal (kiosk-friendly)
+  //   other b2 → interactive Small/Medium/Large tabs
+  //   b1 → no badge, item names rewritten (Reg/Med → Small)
+  //   others → read-only size badge
+  const fixinSec = (key, selKey, scrollNext) => {
+    if (sizePricing) {
+      // Canonical bare names — strip any size prefix from the Regular list
+      const canonical = FIXIN_OPTIONS.Regular.map(f =>
+        f.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '')
+      );
+      return renderPerItemSizeSection(
+        'Select Fixin' + (key === 'fixin2Size' ? ' 2' : ''),
+        canonical, selKey, 'fixin'
+      );
+    }
+    let meta;
+    if (isB2) {
+      meta = `<div class="size-tabs" style="display:inline-flex;gap:4px;">
+        ${['Small','Medium','Large'].map(sz => {
+          const dsVal = sz === 'Small' ? 'Regular' : sz;
+          return `<button class="size-tab ${d[key]===dsVal?'sel':''}"
+            onclick="event.stopPropagation();DS['${key}']='${sz==='Small'?'Regular':sz}';DS.${selKey}=[];renderBreakfastDetail('${itemId}')">${sz}</button>`;
+        }).join('')}
+      </div>`;
+    } else if (isB1) {
+      meta = ''; // no badge for b1
+    } else {
+      const label = d[key] === 'Regular' ? 'Small' : d[key];
+      meta = `<span style="font-size:11px;font-weight:700;color:#7B61FF;background:#ede9ff;padding:3px 10px;border-radius:20px;">${label}</span>`;
+    }
+    return sec('Select Fixin' + (key==='fixin2Size'?' 2':''), meta, `
+      <div class="opt-grid">
+        ${(FIXIN_OPTIONS[d[key]]||FIXIN_OPTIONS.Regular).map(f => {
+          let label = f.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '');
+          return `<button class="opt-btn ${d[selKey].includes(f)?'sel':''}"
+            onclick="tsingle(DS.${selKey},'${f}');renderBreakfastDetail('${itemId}'${scrollNext?`,'${scrollNext}'`:''})">${label}</button>`;
+        }).join('')}
+      </div>`);
+  };
+
+  // drinksSec:
+  //   bc2/bc3 in Regular Combo → per-item size picker modal
+  //   other b2 → interactive Small/Medium/Large tabs
+  //   b1 → no badge
+  //   others → read-only size badge
+  const drinksSec = () => {
+    if (sizePricing) {
+      const canonical = (DRINKS.Small || DRINKS.Medium || []).map(dr =>
+        dr.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '')
+      );
+      return renderPerItemSizeSection('Drinks', canonical, 'selectedDrinks', 'drink');
+    }
+    let meta;
+    if (isB2) {
+      meta = `<div class="size-tabs" style="display:inline-flex;gap:4px;">
+        ${['Small','Medium','Large'].map(sz => {
+          const dsVal = sz === 'Small' ? 'Regular' : sz;
+          return `<button class="size-tab ${d.drinksSize===dsVal?'sel':''}"
+            onclick="event.stopPropagation();DS.drinksSize='${sz==='Small'?'Regular':sz}';DS.selectedDrinks=[];renderBreakfastDetail('${itemId}')">${sz}</button>`;
+        }).join('')}
+      </div>`;
+    } else if (isB1) {
+      meta = '';
+    } else {
+      const label = d.drinksSize === 'Regular' ? 'Small' : d.drinksSize;
+      meta = `<span style="font-size:11px;font-weight:700;color:#7B61FF;background:#ede9ff;padding:3px 10px;border-radius:20px;">${label}</span>`;
+    }
+    return sec('Drinks', meta, `
+      <div class="opt-grid">
+        ${(DRINKS[d.drinksSize]||DRINKS.Medium).map(dr => {
+          let label = dr.replace(/^(Reg|Med|Fam|Family|Small|Large|1\/2 Gal)\s+/i, '');
+          return `<button class="opt-btn ${d.selectedDrinks.includes(dr)?'sel':''}"
+            onclick="tsingle(DS.selectedDrinks,'${dr}');renderBreakfastDetail('${itemId}')">${label}</button>`;
+        }).join('')}
+      </div>`);
+  };
+
+  const biscuitModsSec = () => sec('Biscuit Mods', '', `
+    <div class="opt-grid">
+      ${BISCUIT_MODS.map(m =>
+        `<button class="opt-btn ${d.selectedBiscuitMods.includes(m)?'sel':''}"
+          onclick="tmulti(DS.selectedBiscuitMods,'${m}',99);renderBreakfastDetail('${itemId}')">${m}</button>`).join('')}
+    </div>`);
+
+  const condimentsSec = () => sec('Condiments(Packets incl Dip Sauce)', '', `
+    <div class="opt-grid">
+      ${CONDIMENTS.map(c =>
+        `<button class="opt-btn ${d.selectedBfCondiments.includes(c)?'sel':''}"
+          onclick="tmulti(DS.selectedBfCondiments,'${c}',99);renderBreakfastDetail('${itemId}')">${c}</button>`).join('')}
+    </div>`);
+
+  // ── Build HTML — combo already chosen on variant picker screen ──
+  let html = '';
+
+  // Combo-conditional: fixin(s) + drinks
+  if (showFixin) {
+    html += fixinSec('fixin1Size', 'selectedFixin1', showFixin2 ? 'sec-selectfixin2' : 'sec-drinks');
+    if (showFixin2) html += fixinSec('fixin2Size', 'selectedFixin2', 'sec-drinks');
+    html += drinksSec();
+  }
+
+  // Item-specific sections
+  if (itemId === 'b1' || itemId === 'bc1') {
+    // #1 Caj Biscuit Meal: Biscuit Mods, Condiments, Meat Options, Bread Options
+    html += biscuitModsSec();
+    html += condimentsSec();
+    html += sec('Meat Options', 'select upto 2 option(s)', `
+      <div class="opt-grid">
+        ${MEAT_BF.map(m => {
+          const isSel = d.selectedMeatOpts.includes(m);
+          const modKey = 'meatMod_' + m.replace(/\s/g,'_');
+          const currentMod = d[modKey] || '';
+          return `<div class="opt-btn ${isSel?'sel':''}" style="padding:0;overflow:hidden;flex-direction:column;align-items:stretch;gap:0;">
+            <div style="padding:11px 10px;font-size:11.5px;font-weight:600;cursor:pointer;${isSel?'color:#fff':''}"
+              onclick="tmulti(DS.selectedMeatOpts,'${m}',2);renderBreakfastDetail('${itemId}','sec-meatoptions')">${m}</div>
+            ${isSel ? `<div style="display:flex;border-top:1px solid rgba(255,255,255,0.3);">
+              ${['Lite','Extra','On Side','Sub'].map(mod =>
+                `<div style="flex:1;padding:5px 2px;text-align:center;font-size:9.5px;font-weight:700;cursor:pointer;
+                  background:${currentMod===mod?'rgba(255,255,255,0.3)':'transparent'};
+                  color:${isSel?'#fff':'#555'};border-right:1px solid rgba(255,255,255,0.2);"
+                  onclick="event.stopPropagation();DS['${modKey}']='${mod}';renderBreakfastDetail('${itemId}')">${mod}</div>`
+              ).join('')}
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`);
+    html += sec('Bread Options', '', `
+      <div class="opt-grid">
+        ${BREAD_OPTIONS.map(b =>
+          `<button class="opt-btn ${d.selectedBreadOpts.includes(b)?'sel':''}"
+            onclick="tsingle(DS.selectedBreadOpts,'${b}');renderBreakfastDetail('${itemId}')">${b}</button>`).join('')}
+      </div>`);
+  } else {
+    // All others: Biscuit Mods, Condiments
+    html += biscuitModsSec();
+    html += condimentsSec();
+  }
+
+  document.getElementById('detail-body').innerHTML = html;
+  if (scrollTo) scrollToSection(scrollTo);
+  applyCollapsedState();
+
+  // ── Dynamic Add-to-Cart price ────────────────────────────────
+  // Base = variant price (if variant config defines one), else item base price.
+  // For bc2 in Regular Combo, add Medium (+$1) or Large (+$2) upcharges from
+  // both the fixin size and the drink size.
+  const _cfgKey = VARIANT_CONFIG['breakfast_' + itemId] ? 'breakfast_' + itemId : null;
+  const _cfg    = _cfgKey ? VARIANT_CONFIG[_cfgKey] : null;
+  let _price = parseFloat((currentItem.price||'$0').replace(/[^0-9.]/g,'')) || 0;
+  if (_cfg) {
+    const _opt = _cfg.options.find(o => o.value === d.combo);
+    if (_opt && _opt.price) {
+      _price = parseFloat(_opt.price.replace(/[^0-9.]/g,'')) || _price;
+    }
+  }
+  if ((itemId === 'bc2' || itemId === 'bc3') && d.combo === 'Regular Combo') {
+    // Sum upcharges from the sizes chosen per-selection (via the new
+    // size picker modal), rather than one flat section-level size.
+    _price += sumSelectedSizeUpcharges(itemId);
+  }
+  const _bac = document.getElementById('btn-add-cart');
+  if (_bac) _bac.textContent = `Add to Cart | $${_price.toFixed(2)}`;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SECTION TEMPLATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function sec(label, meta, bodyHtml) {
+  const id = 'sec-' + label.replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+  return `<div class="detail-section" data-sec-id="${id}">
+    <div class="detail-sec-hdr">
+      <span class="detail-sec-label" onclick="toggleSection(this.closest('.detail-sec-hdr'))" style="cursor:pointer;flex:0 0 auto">${label}</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:8px;">
+        ${meta ? meta : ''}
+      </div>
+      <span class="detail-sec-chevron" onclick="toggleSection(this.closest('.detail-sec-hdr'))" style="transform:rotate(180deg);color:#7B61FF;font-size:15px;transition:transform 0.2s;flex-shrink:0;cursor:pointer">⌃</span>
+    </div>
+    <div class="detail-sec-body">${bodyHtml}</div>
+  </div>`;
+}
+
+/* Smooth-scroll detail-body so the target section header is near the top */
+let _scrollRafId = null;
+function scrollToSection(secId) {
+  if (_scrollRafId) cancelAnimationFrame(_scrollRafId);
+  _scrollRafId = requestAnimationFrame(() => {
+    _scrollRafId = null;
+    const detailScreen = document.getElementById('screen-detail');
+    if (!detailScreen || !detailScreen.classList.contains('active')) return;
+    const container = document.getElementById('detail-body');
+    if (!container) return;
+    const target = container.querySelector(`[data-sec-id="${secId}"]`);
+    if (!target) return;
+    container.scrollTo({ top: target.offsetTop - 12, behavior: 'smooth' });
+  });
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOGGLE HELPERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function tmulti(arr, val, max) {
+  const i = arr.indexOf(val);
+  if (i > -1) arr.splice(i, 1);
+  else if (arr.length < max) arr.push(val);
+}
+function tsingle(arr, val) {
+  const i = arr.indexOf(val);
+  arr.length = 0;
+  if (i < 0) arr.push(val);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   #2 START AGAIN CONFIRMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function startAgainConfirm() {
+  if (DS.cartCount === 0) { resetCart(); navigate('screen-welcome'); return; }
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+function hideConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+}
+function confirmStartAgain() {
+  hideConfirm();
+  resetCart();
+  navigate('screen-welcome');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   #6 TOAST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg || '✓ Added to cart!';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CART
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function addToCart() {
+  if (!currentItem) return;
+  const price = parseFloat((currentItem.price || '$0').replace(/[^0-9.]/g,'')) || 0;
+  const d = DS;
+  const type = currentItem.type;
+
+  let subOpts = [];
+  let cartPrice = price; // Default to base price
+
+  if (type === 'chicken') {
+    if (d.meatType)    subOpts.push(d.meatType);
+    if (d.fixinCount)  subOpts.push(d.fixinCount);
+    subOpts = subOpts.concat(d.selectedFixins, d.selectedFixins2, d.selectedCondiments, d.selectedPieces);
+  } else if (type === 'breakfast') {
+    if (d.combo) subOpts.push(d.combo);
+    subOpts = subOpts.concat(d.selectedFixin1, d.selectedFixin2, d.selectedDrinks,
+      d.selectedBiscuitMods, d.selectedBreadOpts, d.selectedMeatOpts, d.selectedBfCondiments);
+    // Match the dynamic Add-to-Cart button: use variant price (if defined)
+    // and add size upcharges for bc2 in Regular Combo.
+    const _cfgKey = VARIANT_CONFIG['breakfast_' + currentItem.id] ? 'breakfast_' + currentItem.id : null;
+    const _cfg    = _cfgKey ? VARIANT_CONFIG[_cfgKey] : null;
+    if (_cfg) {
+      const _opt = _cfg.options.find(o => o.value === d.combo);
+      if (_opt && _opt.price) {
+        cartPrice = parseFloat(_opt.price.replace(/[^0-9.]/g,'')) || cartPrice;
+      }
+    }
+    if ((currentItem.id === 'bc2' || currentItem.id === 'bc3') && d.combo === 'Regular Combo') {
+      cartPrice += sumSelectedSizeUpcharges(currentItem.id);
+    }
+  } else if (type === 'burger' || type === 'burgerplain') {
+    if (d.burgerSize)       subOpts.push('Size: ' + d.burgerSize);
+    if (d.burgerExtras?.length)     subOpts = subOpts.concat(d.burgerExtras);
+    if (d.burgerCondiments?.length) subOpts = subOpts.concat(d.burgerCondiments);
+    if (d.burgerDrink?.length)      subOpts = subOpts.concat(d.burgerDrink);
+  } else if (type === 'pizza') {
+    if (d.burgerSize) subOpts.push('Size: ' + d.burgerSize);
+    (d.pizzas || []).forEach((p, i) => {
+      const name = p.chosenName || CICIS_PIZZAS[i];
+      subOpts.push(`Pizza ${i+1}: ${name}`);
+      if (p.crust !== 'Original') subOpts.push(p.crust);
+      if (p.toppings?.length) subOpts = subOpts.concat(p.toppings.slice(0,3));
+    });
+    if (d.pizzaSide?.length)    subOpts = subOpts.concat(d.pizzaSide);
+    if (d.pizzaBev?.length)     subOpts = subOpts.concat(d.pizzaBev);
+  } else if (type === 'burgercombo') {
+    if (d.bcSize) subOpts.push('Size: ' + d.bcSize);
+    if (d.bdBurgers && d.bdBurgers[0] && d.bdBurgers[0].mods && d.bdBurgers[0].mods.length) {
+        subOpts.push(`Customized Burger`);
+        subOpts = subOpts.concat(d.bdBurgers[0].mods.slice(0,2));
+    }
+    if (d.bcFries?.length) subOpts = subOpts.concat(d.bcFries);
+    if (d.bcDrink?.length) subOpts = subOpts.concat(d.bcDrink);
+    const prices = { Single: 10.99, Double: 13.99, Triple: 16.99, Family: 24.99 };
+    cartPrice = prices[d.bcSize] || 10.99;
+  } else if (type === 'bigdeal') {
+    if (currentItem.id === 'bp1') { // BYO Single Burger Combo
+        // Validate required fields
+        if (!d.byoDrink) {
+          showToast('⚠ Please select a drink first');
+          const drinkBody = document.getElementById('byo-body-drinks');
+          if (drinkBody) { drinkBody.style.display = 'block'; DS.byoOpenSections.drinks = true; }
+          const drinkEl = document.querySelector('[id^="byo-body-drinks"]');
+          if (drinkEl) drinkEl.scrollIntoView({ behavior:'smooth', block:'center' });
+          return;
+        }
+        let total = 8.29;
+        if (d.byoBurger.mods && d.byoBurger.mods.length) {
+            subOpts.push(`Customized Burger`);
+            subOpts = subOpts.concat(d.byoBurger.mods.slice(0,2));
+        }
+        if (d.byoSide) {
+            subOpts.push(d.byoSide);
+            const item = BYO_SIDES.find(i => i.name === d.byoSide);
+            if (item) total += parseFloat(item.price.replace('$', ''));
+        }
+        if (d.byoFriesLoaded) {
+            subOpts.push(d.byoFriesLoaded);
+            total += 2.30;
+        }
+        if (d.byoSauces?.length) subOpts = subOpts.concat(d.byoSauces);
+        if (d.byoDrink) {
+            subOpts.push(d.byoDrink);
+            const item = BYO_DRINKS.find(i => i.name === d.byoDrink);
+            if (item) total += parseFloat(item.price.replace('$', ''));
+        }
+        cartPrice = total;
+    } else {
+        (d.bdBurgers || []).forEach((b, i) => {
+          const name = b.chosenName || `Burger ${i+1}`;
+          subOpts.push(name);
+          if (b.mods?.length) subOpts = subOpts.concat(b.mods.slice(0,2));
+        });
+        if (d.bdBeverage?.length) subOpts = subOpts.concat(d.bdBeverage);
+        if (d.bdDessert?.length)  subOpts = subOpts.concat(d.bdDessert);
+    }
+  }
+  
+  subOpts = subOpts.filter(Boolean);
+
+  // Always push as new item (different customizations should be separate entries)
+  DS.cartItems.push({
+    id: currentItem.id,
+    name: currentItem.name,
+    price: cartPrice, 
+    priceStr: `$${cartPrice.toFixed(2)}`,
+    img: currentItem.img || '',
+    type,
+    category: currentItem.category,
+    subOpts,
+    qty: 1,
+    // #14 FIX: snapshot of selections for Customize restore
+    snapshot: JSON.parse(JSON.stringify({
+      meatType: d.meatType, fixinCount: d.fixinCount, fixinSize: d.fixinSize, fixinSize2: d.fixinSize2,
+      selectedFixins: [...d.selectedFixins], selectedFixins2: [...d.selectedFixins2],
+      selectedCondiments: [...d.selectedCondiments], selectedPieces: [...d.selectedPieces],
+      combo: d.combo,
+      fixin1Size: d.fixin1Size, selectedFixin1: [...d.selectedFixin1],
+      fixin2Size: d.fixin2Size, selectedFixin2: [...d.selectedFixin2],
+      drinksSize: d.drinksSize, selectedDrinks: [...d.selectedDrinks],
+      selectedBiscuitMods: [...d.selectedBiscuitMods], selectedMeatOpts: [...d.selectedMeatOpts],
+      selectedBreadOpts: [...d.selectedBreadOpts], selectedBfCondiments: [...d.selectedBfCondiments],
+      burgerSize: d.burgerSize, burgerExtras: [...(d.burgerExtras||[])],
+      burgerCondiments: [...(d.burgerCondiments||[])], burgerDrink: [...(d.burgerDrink||[])],
+      pizzas: JSON.parse(JSON.stringify(d.pizzas||[])),
+      pizzaSide: [...(d.pizzaSide||[])], pizzaBev: [...(d.pizzaBev||[])],
+      pizzaDessert: [...(d.pizzaDessert||[])], pizzaApps: [...(d.pizzaApps||[])],
+      bdBurgers: JSON.parse(JSON.stringify(d.bdBurgers||[])),
+      bdBeverage: [...(d.bdBeverage||[])], bdDessert: [...(d.bdDessert||[])],
+      byoBurger: JSON.parse(JSON.stringify(d.byoBurger||{})),
+      byoSide: d.byoSide,
+      byoFriesLoaded: d.byoFriesLoaded,
+      byoSauces: [...(d.byoSauces||[])],
+      byoDrink: d.byoDrink,
+      bcSize: d.bcSize, bcBurger: [...(d.bcBurger||[])], bcFries: [...(d.bcFries||[])], bcDrink: [...(d.bcDrink||[])],
+      bcDrinkSz: d.bcDrinkSz, bcToppings: [...(d.bcToppings||[])], bcSauces: [...(d.bcSauces||[])],
+    })),
+  });
+
+  DS.cartCount = DS.cartItems.reduce((s, i) => s + i.qty, 0);
+  DS.cartTotal = DS.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  // Sync menuQty so the card shows the correct count
+  DS.menuQty[currentItem.id] = (DS.menuQty[currentItem.id] || 0) + 1;
+  // #6 show toast then go to menu
+  showToast(`✓ ${currentItem.name} added!`);
+  navigate('screen-menu');
+}
+
+function renderMenuFooter() {
+  const footer = document.getElementById('menu-footer');
+  if (!footer) return;
+  if (DS.cartCount === 0) {
+    footer.innerHTML = `
+      <div class="footer-plain">
+        <button class="btn-start-again" onclick="startAgainConfirm()">Start Again</button>
+      </div>
+      <div class="menu-footer-copy">© 2026 Bojangles. All rights reserved.</div>`;
+  } else {
+    const totalStr = '$' + DS.cartTotal.toFixed(2);
+    footer.innerHTML = `
+      <div class="footer-cart-bar">
+        <button class="footer-cart-start" onclick="startAgainConfirm()">Start Again</button>
+        <div class="footer-cart-green" onclick="navigate('screen-cart')">
+          <div class="footer-cart-info">
+            <span class="footer-cart-icon">🛒</span>
+            <div class="footer-cart-text">
+              <span class="footer-cart-count">${DS.cartCount} Item(s) | ${totalStr}</span>
+              <span class="footer-cart-sub">Extra charges may apply</span>
+            </div>
+          </div>
+          <div class="footer-view-cart">View Cart &nbsp;→</div>
+        </div>
+      </div>
+      <div class="menu-footer-copy">© 2026 Bojangles. All rights reserved.</div>`;
+  }
+}
+
+function renderCartScreen() {
+  const body = document.getElementById('cart-body');
+  if (!body) return;
+
+  if (DS.cartItems.length === 0) {
+    body.innerHTML = `<div style="text-align:center;padding:80px 20px;color:#aaa;font-size:15px;font-weight:600;">Your cart is empty.<br><br>Tap "Add More" to add items.</div>`;
+    const bottomRow = document.getElementById('cart-bottom-fixed');
+    if (bottomRow) bottomRow.innerHTML = '';
+    return;
+  }
+
+  const itemsHtml = DS.cartItems.map((item, idx) => {
+    const subRows = (item.subOpts || []).map(opt =>
+      `<div class="cart-sub-row">
+        <span class="cart-sub-name">${opt}</span>
+        <span class="cart-sub-price"></span>
+      </div>`
+    ).join('');
+
+    return `
+    <div class="cart-item-card">
+      <div class="cart-item-top">
+        <div class="cart-item-icon" style="overflow:hidden;border-radius:8px;flex-shrink:0;">
+          <img src="${item.img}" alt="${item.name}"
+               style="width:38px;height:38px;object-fit:cover;display:block;border-radius:8px;"
+               onerror="this.style.display='none';this.parentElement.style.background='${item.type==='chicken'?'#F9E87A':item.type==='breakfast'?'#FFD8A8':item.type.includes('pizza')?'#FFB3B3':'#D4E8FF'}';this.parentElement.innerHTML='<span style=font-size:20px;line-height:38px;display:block;text-align:center>${item.type==='chicken'?'🍗':item.type==='breakfast'?'🍳':item.type.includes('pizza')?'🍕':'🍔'}</span>'"/>
+        </div>
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-qty-controls">
+          <button class="cart-qty-btn" onclick="changeQty(${idx},-1)">−</button>
+          <div class="cart-qty-num">${item.qty}</div>
+          <button class="cart-qty-btn" onclick="changeQty(${idx},1)">+</button>
+        </div>
+        <div class="cart-item-total">$${(item.price * item.qty).toFixed(2)}</div>
+      </div>
+      ${subRows ? `<div class="cart-sub-rows">${subRows}</div>` : ''}
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button class="cart-customize-link" onclick="customizeCartItem(${idx})">Customize ▾</button>
+        <button class="cart-customize-link" style="color:#F05A5A" onclick="removeCartItem(${idx})">✕ Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const subtotal = DS.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax;
+
+  body.innerHTML = itemsHtml;
+
+  const bottomRow = document.getElementById('cart-bottom-fixed');
+  if (bottomRow) {
+    bottomRow.innerHTML = `
+      <div class="cart-loyalty-card" onclick="applyLoyalty()">
+        <div class="cart-loyalty-icon">🎁</div>
+        <div class="cart-loyalty-label">Apply Loyalty Rewards</div>
+      </div>
+      <div class="cart-summary-col">
+        <div class="cart-sum-row"><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+        <div class="cart-sum-row"><span>Tax</span><span>$${tax.toFixed(2)}</span></div>
+        <hr class="cart-sum-dashed">
+        <div class="cart-sum-row grand"><span>Total Payable</span><span>$${total.toFixed(2)}</span></div>
+      </div>`;
+  }
+}
+
+// #14 FIX: Customize restores snapshot into DS then opens detail
+function customizeCartItem(idx) {
+  const item = DS.cartItems[idx];
+  if (!item) return;
+  // Restore snapshot into DS
+  if (item.snapshot) Object.assign(DS, JSON.parse(JSON.stringify(item.snapshot)));
+  const allItems = [...CHICKEN_ITEMS, ...BREAKFAST_ITEMS, ...BREAKFAST_COMBO_ITEMS, ...BURGER_PIZZA_ITEMS];
+  currentItem = allItems.find(i => i.id === item.id);
+  if (!currentItem) return;
+  navigate('screen-detail');
+  const isB      = currentItem.type === 'breakfast';
+  const isBigDeal= currentItem.type === 'bigdeal';
+  const isBurgerCombo = currentItem.type === 'burgercombo';
+  const isBurger = ['burger','burgerplain','pizza'].includes(currentItem.type);
+  const _dh=document.getElementById('detail-header');if(_dh)_dh.innerHTML = `
+    <div class="detail-img" style="background:#f0f0f0;padding:0;overflow:hidden;border-radius:12px;">
+      <img src="${currentItem.img}" alt="${currentItem.name}"
+           style="width:125px;height:102px;object-fit:cover;display:block;"
+           onerror="this.onerror=null;this.src='https://picsum.photos/seed/${currentItem.id}/300/200'"/>
+    </div>
+    <div><div class="detail-name">${currentItem.name}</div></div>`;
+  const _bac=document.getElementById('btn-add-cart');if(_bac)_bac.textContent = `Update Cart | $${item.price.toFixed(2)}`;
+  if (isB)        renderBreakfastDetail(currentItem.id);
+  else if (isBigDeal) renderBYOSingleBurgerComboDetail();
+  else if (isBurgerCombo) _renderBurgerComboDetail(DS.bcSize);
+  else if (isBurger)  renderBurgerDetail(DS.burgerSize);
+  else            renderChickenDetail();
+}
+
+// #7 FIX: Remove item entirely from cart
+function removeCartItem(idx) {
+  DS.cartItems.splice(idx, 1);
+  DS.cartCount = DS.cartItems.reduce((s, i) => s + i.qty, 0);
+  DS.cartTotal = DS.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  renderCartScreen();
+  renderMenuFooter();
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PER-ITEM SIZE PICKER (bc2/bc3 in Regular Combo)
+   Kiosk-style modal — item image on top, three side-by-side size
+   cards with cup icons and prices. One-tap select commits and closes.
+   Chosen size is stored as a prefix on the item name in DS[selKey],
+   e.g. "Medium Bo-Tato Rounds".
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function openItemSizePicker(itemId, kind, selKey, baseName) {
+  const existing = document.getElementById('size-picker-modal');
+  if (existing) existing.remove();
+
+  const priceMap = (itemId === 'bc3')
+    ? { Small: -1, Medium: 0, Large: 2 }
+    : { Small: 0, Medium: 1, Large: 2 };
+  const fmt = (n) => n === 0 ? '$0' : (n > 0 ? '+$' + n : '-$' + Math.abs(n));
+
+  // Currently-selected size for this base name (if any)
+  const current = (DS[selKey] || []).find(v =>
+    v.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal)\s+/i, '').toLowerCase() === baseName.toLowerCase()
+  );
+  const rawSize = current ? current.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal).*/i, '$1') : '';
+  const currentSize = rawSize === 'Reg' ? 'Small' : (rawSize === 'Med' ? 'Medium' : (rawSize === 'Fam' || rawSize === 'Family' ? 'Large' : rawSize));
+
+  // Scales visually by size. Cup for drinks, bowl for fixins / anything else.
+  const containerSvg = (size, isSelected) => {
+    const stroke = isSelected ? '#7B61FF' : '#B8B8C4';
+    const fill   = isSelected ? '#F0EBFF' : '#F5F5F8';
+    if (kind === 'drink') {
+      // Tapered cup silhouette
+      const heights = { Small: 46, Medium: 62, Large: 80 };
+      const widths  = { Small: 34, Medium: 42, Large: 52 };
+      const h = heights[size], w = widths[size];
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+        <path d="M ${w*0.15} 4 L ${w*0.85} 4 L ${w*0.75} ${h-4} L ${w*0.25} ${h-4} Z"
+          fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>
+        <ellipse cx="${w/2}" cy="6" rx="${w*0.36}" ry="3" fill="${stroke}" opacity="0.35"/>
+      </svg>`;
+    }
+    // Bowl silhouette — round, food-container shape. Wider than a cup, shorter.
+    const widths  = { Small: 46, Medium: 62, Large: 82 };
+    const heights = { Small: 32, Medium: 42, Large: 54 };
+    const w = widths[size], h = heights[size];
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+      <!-- Bowl body: half-ellipse bottom -->
+      <path d="M ${w*0.08} ${h*0.28} Q ${w/2} ${h*1.15}, ${w*0.92} ${h*0.28} Z"
+        fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Rim ellipse -->
+      <ellipse cx="${w/2}" cy="${h*0.28}" rx="${w*0.42}" ry="${h*0.14}"
+        fill="${isSelected ? '#E4DAFF' : '#EAEAF0'}" stroke="${stroke}" stroke-width="2"/>
+      <!-- Optional contents dot to hint at food -->
+      <ellipse cx="${w/2}" cy="${h*0.30}" rx="${w*0.28}" ry="${h*0.08}"
+        fill="${stroke}" opacity="0.25"/>
+    </svg>`;
+  };
+
+  const modal = document.createElement('div');
+  modal.id = 'size-picker-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;position:relative;">
+      <!-- Close X in corner -->
+      <button onclick="document.getElementById('size-picker-modal').remove()"
+        style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,0.06);color:#333;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;line-height:1;">✕</button>
+
+      <!-- Header: item name -->
+      <div style="padding:26px 24px 8px;">
+        <div style="font-size:11px;font-weight:800;color:#7B61FF;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Choose Your Size</div>
+        <div style="font-size:22px;font-weight:900;color:#1A1A1A;line-height:1.15;padding-right:36px;">${baseName}</div>
+      </div>
+
+      <!-- Three side-by-side size cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:16px 20px 12px;">
+        ${['Small','Medium','Large'].map(sz => {
+          const isCur = sz === currentSize;
+          const price = fmt(priceMap[sz]);
+          const priceColor = priceMap[sz] < 0 ? '#0B8A3E' : '#B7202E';
+          return `<button onclick="chooseItemSize('${itemId}','${selKey}','${baseName.replace(/'/g,"\\'")}','${sz}')"
+            style="position:relative;background:${isCur?'#F7F4FF':'#fff'};border:2px solid ${isCur?'#7B61FF':'#E5E5EA'};border-radius:18px;padding:16px 8px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:all 0.15s;min-height:170px;justify-content:space-between;">
+            ${isCur ? `<span style="position:absolute;top:8px;right:8px;width:22px;height:22px;background:#7B61FF;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;">✓</span>` : ''}
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;padding-top:6px;">
+              ${containerSvg(sz, isCur)}
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:14px;font-weight:800;color:${isCur?'#7B61FF':'#1A1A1A'};margin-bottom:2px;">${sz}</div>
+              <div style="font-size:15px;font-weight:900;color:${priceColor};">${price}</div>
+            </div>
+          </button>`;
+        }).join('')}
+      </div>
+
+      <!-- Footer: Remove (if selected) + hint text -->
+      <div style="padding:8px 20px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        ${current
+          ? `<button onclick="removeItemSize('${selKey}','${baseName.replace(/'/g,"\\'")}')"
+              style="background:none;border:none;color:#B7202E;font-size:13px;font-weight:800;cursor:pointer;padding:8px 4px;text-decoration:underline;">Remove from meal</button>`
+          : `<div style="font-size:12px;color:#888;font-weight:600;">Tap a size to add</div>`
+        }
+        <div style="font-size:11px;color:#B0B0B8;font-weight:600;">Prices shown are upcharge</div>
+      </div>
+    </div>`;
+  document.getElementById('kiosk').appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+function chooseItemSize(itemId, selKey, baseName, size) {
+  // Remove any previously-selected size variant of this base name
+  DS[selKey] = (DS[selKey] || []).filter(v =>
+    v.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal)\s+/i, '').toLowerCase() !== baseName.toLowerCase()
+  );
+  DS[selKey].push(size + ' ' + baseName);
+  document.getElementById('size-picker-modal')?.remove();
+  renderBreakfastDetail(itemId);
+}
+
+function removeItemSize(selKey, baseName) {
+  DS[selKey] = (DS[selKey] || []).filter(v =>
+    v.replace(/^(Small|Medium|Large|Reg|Med|Fam|Family|1\/2 Gal)\s+/i, '').toLowerCase() !== baseName.toLowerCase()
+  );
+  document.getElementById('size-picker-modal')?.remove();
+  renderBreakfastDetail(currentItem.id);
+}
+
+// Sum size upcharges from selected fixin/drink lists, based on the
+// per-item pricing map for the current itemId.
+function sumSelectedSizeUpcharges(itemId) {
+  if (!(itemId === 'bc2' || itemId === 'bc3')) return 0;
+  if (DS.combo !== 'Regular Combo') return 0;
+  const priceMap = (itemId === 'bc3')
+    ? { Small: -1, Medium: 0, Large: 2 }
+    : { Small: 0, Medium: 1, Large: 2 };
+  const norm = { Reg: 'Small', Med: 'Medium', Fam: 'Large', Family: 'Large' };
+  const upchargeFor = (v) => {
+    const m = v.match(/^(Small|Medium|Large|Reg|Med|Fam|Family)\b/i);
+    if (!m) return 0;
+    const key = norm[m[1]] || m[1];
+    return priceMap[key] || 0;
+  };
+  let sum = 0;
+  (DS.selectedFixin1 || []).forEach(v => { sum += upchargeFor(v); });
+  (DS.selectedFixin2 || []).forEach(v => { sum += upchargeFor(v); });
+  (DS.selectedDrinks || []).forEach(v => { sum += upchargeFor(v); });
+  return sum;
+}
+
+function applyLoyalty() {
+  const modal = document.createElement('div');
+  modal.id = 'loyalty-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:18px;padding:26px 22px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="font-size:17px;font-weight:900;color:#1A1A1A;margin-bottom:8px;">Apply Loyalty Rewards</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">Enter your code to redeem points.</div>
+      <input id="loyalty-code-input" type="text" placeholder="e.g. BOJ-12345"
+        style="width:100%;padding:12px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:14px;"/>
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('loyalty-modal').remove()"
+          style="flex:1;padding:13px;border-radius:12px;border:none;background:#f0f0f0;color:#333;font-size:14px;font-weight:700;cursor:pointer;">Cancel</button>
+        <button onclick="
+          const code=document.getElementById('loyalty-code-input').value.trim();
+          if(code){showToast('🎁 Loyalty code applied!');document.getElementById('loyalty-modal').remove();}
+          else{document.getElementById('loyalty-code-input').style.borderColor='#F05A5A';}"
+          style="flex:1;padding:13px;border-radius:12px;border:none;background:#7B61FF;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Apply</button>
+      </div>
+    </div>`;
+  document.getElementById('kiosk').appendChild(modal);
+  setTimeout(() => document.getElementById('loyalty-code-input')?.focus(), 50);
+}
+
+function changeQty(idx, delta) {
+  const newQty = (DS.cartItems[idx].qty || 1) + delta;
+  if (newQty <= 0) {
+    removeCartItem(idx);
+    return;
+  }
+  DS.cartItems[idx].qty = newQty;
+  DS.cartCount = DS.cartItems.reduce((s, i) => s + i.qty, 0);
+  DS.cartTotal = DS.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  renderCartScreen();
+  renderMenuFooter();
+}
+
+function placeOrder() {
+  // Generate random 3-digit order number
+  const orderNum = String(Math.floor(100 + Math.random() * 900));
+  const el = document.getElementById('order-number');
+  if (el) el.textContent = '#' + orderNum;
+  navigate('screen-confirm-order');
+  // Reset cart after showing confirmation (cart data still visible on confirm screen)
+  setTimeout(() => resetCart(), 100);
+}
+
+function resetCart() {
+  DS.cartCount = 0;
+  DS.cartTotal = 0;
+  DS.cartItems = [];
+  DS.menuQty = {};
+}
+
+/* ━━━ INIT ━━━ */
+renderSidebar('breakfast');
+renderGrid('breakfast');
+renderMenuFooter();
+document.getElementById('menu-cat-title').textContent = 'Breakfast';
+</script>
+</body>
+</html>
